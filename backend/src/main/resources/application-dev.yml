@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cultural_xinjiang_dev
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop
+  # 开发环境禁用 Redis 自动配置（如果不需要 Redis）
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+logging:
+  level:
+    root: INFO
+    com.example.culturalxinjiang: DEBUG
+
+
