@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.vscode/
+.idea/
+
+# Prevent scanning backend and build outputs when IDE runs ESLint at repo root
+../backend/**
+**/backend/**
+**/target/**
+**/logs/**
+
+
