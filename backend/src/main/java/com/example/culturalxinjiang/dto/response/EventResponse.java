@@ -28,6 +28,8 @@ public class EventResponse {
     private Double price;
     private Event.EventStatus status;
     private LocalDateTime createdAt;
+    private List<String> images;
+    private List<String> videos;
 
     @Data
     @NoArgsConstructor

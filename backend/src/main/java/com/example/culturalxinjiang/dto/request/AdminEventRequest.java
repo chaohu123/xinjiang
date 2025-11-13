@@ -30,6 +30,7 @@ public class AdminEventRequest {
     private String status;
     private Event.EventLocation location;
     private List<String> images;
+    private List<String> videos;
     private Event.Organizer organizer;
     private List<Event.ScheduleItem> schedule;
     private List<String> requirements;

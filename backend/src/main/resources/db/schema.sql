@@ -173,7 +173,20 @@ CREATE TABLE IF NOT EXISTS event_images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活动图片表';
 
 -- =====================================================
--- 7. 活动日程表 (event_schedules)
+-- 7. 活动视频表 (event_videos)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS event_videos (
+    event_id BIGINT NOT NULL,
+    video_url VARCHAR(500) NOT NULL,
+    PRIMARY KEY (event_id, video_url),
+    CONSTRAINT fk_event_videos_event
+        FOREIGN KEY (event_id)
+        REFERENCES events(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活动视频表';
+
+-- =====================================================
+-- 8. 活动日程表 (event_schedules)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS event_schedules (
     event_id BIGINT NOT NULL,
@@ -187,7 +200,7 @@ CREATE TABLE IF NOT EXISTS event_schedules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活动日程表';
 
 -- =====================================================
--- 8. 活动要求表 (event_requirements)
+-- 9. 活动要求表 (event_requirements)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS event_requirements (
     event_id BIGINT NOT NULL,
@@ -200,12 +213,16 @@ CREATE TABLE IF NOT EXISTS event_requirements (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活动要求表';
 
 -- =====================================================
--- 9. 活动报名表 (event_registrations)
+-- 10. 活动报名表 (event_registrations)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS event_registrations (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
     event_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    remark VARCHAR(500),
+    processed_by BIGINT NULL,
+    processed_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE (user_id, event_id),
@@ -216,7 +233,11 @@ CREATE TABLE IF NOT EXISTS event_registrations (
     CONSTRAINT fk_event_registrations_event
         FOREIGN KEY (event_id)
         REFERENCES events(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_event_registrations_processed_user
+        FOREIGN KEY (processed_by)
+        REFERENCES users(id)
+        ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活动报名表';
 
 -- 创建活动报名表索引

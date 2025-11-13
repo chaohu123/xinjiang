@@ -1,6 +1,7 @@
 package com.example.culturalxinjiang.repository;
 
 import com.example.culturalxinjiang.entity.EventRegistration;
+import com.example.culturalxinjiang.entity.EventRegistration.RegistrationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,6 +15,8 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     long countByEventId(Long eventId);
     List<EventRegistration> findByEventIdOrderByCreatedAtAsc(Long eventId);
     void deleteByEventId(Long eventId);
+    long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
+    Optional<EventRegistration> findByIdAndEventId(Long id, Long eventId);
 }
 
 

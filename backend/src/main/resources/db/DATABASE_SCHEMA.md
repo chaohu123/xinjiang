@@ -103,6 +103,7 @@
 
 **关联表**:
 - `event_images` - 活动图片
+- `event_videos` - 活动视频
 - `event_schedules` - 活动日程
 - `event_requirements` - 活动要求
 - `event_registrations` - 活动报名
@@ -228,6 +229,10 @@
 | id | BIGINT AUTO_INCREMENT | PRIMARY KEY | 报名ID |
 | user_id | BIGINT | NOT NULL | 用户ID（外键） |
 | event_id | BIGINT | NOT NULL | 活动ID（外键） |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'PENDING' | 报名状态（PENDING/APPROVED/REJECTED） |
+| remark | VARCHAR(500) |  | 审核备注 |
+| processed_by | BIGINT |  | 审核人（外键，管理员） |
+| processed_at | TIMESTAMP |  | 审核时间 |
 | created_at | TIMESTAMP | NOT NULL | 创建时间 |
 | updated_at | TIMESTAMP | NOT NULL | 更新时间 |
 
@@ -241,6 +246,7 @@
 **外键**:
 - `user_id` -> `users.id`
 - `event_id` -> `events.id`
+- `processed_by` -> `users.id` (审核人，可为空)
 
 ---
 
@@ -283,6 +289,7 @@ culture_resources
 
 events
   ├── event_images
+  ├── event_videos
   ├── event_schedules
   ├── event_requirements
   └── event_registrations (event_id)

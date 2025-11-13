@@ -41,3 +41,4 @@ export const unlikePost = (id: number) => {
 export const commentPost = (id: number, content: string) => {
   return request.post(`/community/posts/${id}/comments`, { content })
 }
+

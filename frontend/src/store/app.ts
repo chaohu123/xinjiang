@@ -31,3 +31,4 @@ export const useAppStore = defineStore('app', () => {
     initTheme,
   }
 })
+

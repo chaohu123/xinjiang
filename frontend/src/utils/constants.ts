@@ -40,3 +40,4 @@ export const PAGINATION = {
   page: 1,
   size: 12,
 } as const
+

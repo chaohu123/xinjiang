@@ -18,7 +18,6 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 public class EventDetailResponse extends EventResponse {
     private String content;
-    private List<String> images;
     private Organizer organizer;
     private List<ScheduleItem> schedule;
     private List<String> requirements;

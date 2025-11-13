@@ -272,14 +272,15 @@ ON DUPLICATE KEY UPDATE id = id;
 -- =====================================================
 -- 9. 插入活动报名数据
 -- =====================================================
-INSERT INTO event_registrations (user_id, event_id) VALUES
-(2, 1),
-(2, 3),
-(3, 1),
-(3, 2),
-(3, 4)
+INSERT INTO event_registrations (user_id, event_id, status) VALUES
+(2, 1, 'APPROVED'),
+(2, 3, 'APPROVED'),
+(3, 1, 'APPROVED'),
+(3, 2, 'PENDING'),
+(3, 4, 'REJECTED')
 ON DUPLICATE KEY UPDATE id = id;
-
+ALTER TABLE event_registrations
+    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING' AFTER event_id;
 -- =====================================================
 -- 完成
 -- =====================================================

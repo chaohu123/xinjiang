@@ -103,6 +103,21 @@ export const getEventRegistrations = (eventId: number) => {
   return request.get(`/admin/events/${eventId}/registrations`)
 }
 
+// 审核活动报名
+export const approveEventRegistration = (eventId: number, registrationId: number) => {
+  return request.put(`/admin/events/${eventId}/registrations/${registrationId}/approve`)
+}
+
+export const rejectEventRegistration = (
+  eventId: number,
+  registrationId: number,
+  reason?: string
+) => {
+  return request.put(`/admin/events/${eventId}/registrations/${registrationId}/reject`, {
+    reason,
+  })
+}
+
 // ==================== 社区投稿管理 ====================
 export interface PostListResponse {
   list: CommunityPost[]

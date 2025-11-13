@@ -5,9 +5,10 @@ import com.example.culturalxinjiang.dto.response.EventResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.entity.Event;
 import com.example.culturalxinjiang.entity.EventRegistration;
+import com.example.culturalxinjiang.entity.EventRegistration.RegistrationStatus;
 import com.example.culturalxinjiang.entity.User;
-import com.example.culturalxinjiang.repository.EventRepository;
 import com.example.culturalxinjiang.repository.EventRegistrationRepository;
+import com.example.culturalxinjiang.repository.EventRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -73,18 +74,21 @@ public class EventService {
             throw new RuntimeException("已经报名过该活动");
         }
 
-        if (event.getCapacity() != null && event.getRegistered() >= event.getCapacity()) {
-            throw new RuntimeException("活动已满员");
+        if (event.getCapacity() != null) {
+            long approvedCount = registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.APPROVED);
+            if (approvedCount >= event.getCapacity()) {
+                throw new RuntimeException("活动已满员");
+            }
         }
 
         EventRegistration registration = EventRegistration.builder()
                 .user(user)
                 .event(event)
+                .status(RegistrationStatus.PENDING)
                 .build();
         registrationRepository.save(registration);
 
-        event.setRegistered(event.getRegistered() + 1);
-        eventRepository.save(event);
+        updateRegisteredCount(event);
     }
 
     @Transactional
@@ -98,7 +102,12 @@ public class EventService {
 
         registrationRepository.delete(registration);
 
-        event.setRegistered(Math.max(0, event.getRegistered() - 1));
+        updateRegisteredCount(event);
+    }
+
+    private void updateRegisteredCount(Event event) {
+        long approvedCount = registrationRepository.countByEventIdAndStatus(event.getId(), RegistrationStatus.APPROVED);
+        event.setRegistered(Math.toIntExact(approvedCount));
         eventRepository.save(event);
     }
 
@@ -112,6 +121,7 @@ public class EventService {
     private EventResponse mapToResponse(Event event) {
         // 显式访问懒加载集合，确保在事务内加载
         List<String> images = event.getImages() != null ? new ArrayList<>(event.getImages()) : new ArrayList<>();
+        List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
         
         EventResponse.EventLocation location = null;
         if (event.getLocation() != null) {
@@ -137,6 +147,8 @@ public class EventService {
                 .price(event.getPrice())
                 .status(event.getStatus())
                 .createdAt(event.getCreatedAt())
+                .images(images)
+                .videos(videos)
                 .build();
     }
 
@@ -171,6 +183,8 @@ public class EventService {
         // 显式访问懒加载集合，确保在事务内加载
         List<String> images = event.getImages() != null ? new ArrayList<>(event.getImages()) : new ArrayList<>();
         response.setImages(images);
+        List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
+        response.setVideos(videos);
         
         if (event.getOrganizer() != null) {
             response.setOrganizer(new EventDetailResponse.Organizer(

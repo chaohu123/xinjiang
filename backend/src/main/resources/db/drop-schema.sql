@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS routes;
 DROP TABLE IF EXISTS event_requirements;
 DROP TABLE IF EXISTS event_schedules;
 DROP TABLE IF EXISTS event_images;
+DROP TABLE IF EXISTS event_videos;
 DROP TABLE IF EXISTS event_registrations;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS culture_resource_tags;

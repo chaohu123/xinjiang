@@ -34,9 +34,16 @@
         </div>
 
         <div v-if="eventDetail" class="event-body">
-          <div v-if="eventDetail.images && eventDetail.images.length > 0" class="event-images">
+        <div v-if="eventDetail.images && eventDetail.images.length > 0" class="event-images">
             <ImageGallery :images="eventDetail.images" />
           </div>
+
+        <div v-if="eventDetail.videos && eventDetail.videos.length > 0" class="event-videos">
+          <h2>活动视频</h2>
+          <div class="event-video-grid">
+            <VideoPlayer v-for="(video, index) in eventDetail.videos" :key="`${video}-${index}`" :src="video" />
+          </div>
+        </div>
 
           <div class="event-content" v-html="eventDetail.content" />
 
@@ -64,6 +71,7 @@ import { useRoute } from 'vue-router'
 import { getEventDetail, registerEvent } from '@/api/event'
 import type { EventDetail } from '@/types/event'
 import ImageGallery from '@/components/common/ImageGallery.vue'
+import VideoPlayer from '@/components/common/VideoPlayer.vue'
 import { formatDate } from '@/utils'
 import { Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -168,6 +176,20 @@ onMounted(() => {
   > div {
     margin-bottom: 30px;
   }
+}
+
+.event-videos {
+  h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #303133;
+  }
+}
+
+.event-video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
 }
 
 .event-content {

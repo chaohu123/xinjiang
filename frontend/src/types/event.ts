@@ -17,11 +17,12 @@ export interface Event {
   price?: number
   status: 'upcoming' | 'ongoing' | 'past'
   createdAt: string
+  images?: string[]
+  videos?: string[]
 }
 
 export interface EventDetail extends Event {
   content: string
-  images?: string[]
   organizer: {
     name: string
     contact: string

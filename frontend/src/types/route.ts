@@ -41,3 +41,4 @@ export interface RouteResource {
   cover: string
   order: number
 }
+

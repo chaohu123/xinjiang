@@ -34,6 +34,20 @@ public class EventRegistration {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private RegistrationStatus status = RegistrationStatus.PENDING;
+
+    @Column(length = 500)
+    private String remark;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "processed_by")
+    private User processedBy;
+
+    private LocalDateTime processedAt;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -41,6 +55,12 @@ public class EventRegistration {
     @LastModifiedDate
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public enum RegistrationStatus {
+        PENDING,
+        APPROVED,
+        REJECTED
+    }
 }
 
 

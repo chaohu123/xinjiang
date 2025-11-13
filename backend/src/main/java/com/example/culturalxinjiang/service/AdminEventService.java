@@ -6,17 +6,23 @@ import com.example.culturalxinjiang.dto.response.EventResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.entity.Event;
 import com.example.culturalxinjiang.entity.EventRegistration;
+import com.example.culturalxinjiang.entity.EventRegistration.RegistrationStatus;
+import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.EventRegistrationRepository;
 import com.example.culturalxinjiang.repository.EventRepository;
+import com.example.culturalxinjiang.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -29,6 +35,7 @@ public class AdminEventService {
 
     private final EventRepository eventRepository;
     private final EventRegistrationRepository registrationRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<EventResponse> getEvents(Integer page, Integer size, String keyword, String status) {
@@ -91,6 +98,47 @@ public class AdminEventService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void approveRegistration(Long eventId, Long registrationId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("活动不存在"));
+        EventRegistration registration = registrationRepository.findByIdAndEventId(registrationId, eventId)
+                .orElseThrow(() -> new RuntimeException("报名记录不存在"));
+
+        if (registration.getStatus() == RegistrationStatus.APPROVED) {
+            return;
+        }
+
+        if (event.getCapacity() != null) {
+            long approvedCount = registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.APPROVED);
+            if (approvedCount >= event.getCapacity()) {
+                throw new RuntimeException("活动已满员");
+            }
+        }
+
+        registration.setStatus(RegistrationStatus.APPROVED);
+        registration.setRemark(null);
+        registration.setProcessedAt(LocalDateTime.now());
+        registration.setProcessedBy(getCurrentUser());
+
+        updateRegisteredCount(event);
+    }
+
+    @Transactional
+    public void rejectRegistration(Long eventId, Long registrationId, String remark) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("活动不存在"));
+        EventRegistration registration = registrationRepository.findByIdAndEventId(registrationId, eventId)
+                .orElseThrow(() -> new RuntimeException("报名记录不存在"));
+
+        registration.setStatus(RegistrationStatus.REJECTED);
+        registration.setRemark(StringUtils.hasText(remark) ? remark.trim() : null);
+        registration.setProcessedAt(LocalDateTime.now());
+        registration.setProcessedBy(getCurrentUser());
+
+        updateRegisteredCount(event);
+    }
+
     private void applyRequestToEvent(AdminEventRequest request, Event event, boolean creating) {
         if (request.getTitle() != null || creating) {
             event.setTitle(request.getTitle());
@@ -130,6 +178,9 @@ public class AdminEventService {
         }
         if (request.getImages() != null || creating) {
             event.setImages(request.getImages() != null ? new ArrayList<>(request.getImages()) : new ArrayList<>());
+        }
+        if (request.getVideos() != null || creating) {
+            event.setVideos(request.getVideos() != null ? new ArrayList<>(request.getVideos()) : new ArrayList<>());
         }
         if (request.getSchedule() != null || creating) {
             event.setSchedule(request.getSchedule() != null ? new ArrayList<>(request.getSchedule()) : new ArrayList<>());
@@ -205,6 +256,8 @@ public class AdminEventService {
                     event.getLocation().getLng()
             );
         }
+        List<String> images = event.getImages() != null ? new ArrayList<>(event.getImages()) : new ArrayList<>();
+        List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
 
         return EventResponse.builder()
                 .id(event.getId())
@@ -220,11 +273,14 @@ public class AdminEventService {
                 .price(event.getPrice())
                 .status(event.getStatus())
                 .createdAt(event.getCreatedAt())
+                .images(images)
+                .videos(videos)
                 .build();
     }
 
     private EventRegistrationResponse mapToRegistrationResponse(EventRegistration registration) {
         var user = registration.getUser();
+        var reviewer = registration.getProcessedBy();
         return EventRegistrationResponse.builder()
                 .id(registration.getId())
                 .userId(user.getId())
@@ -233,7 +289,27 @@ public class AdminEventService {
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .registeredAt(registration.getCreatedAt())
+                .status(registration.getStatus() != null ? registration.getStatus().name().toLowerCase() : RegistrationStatus.PENDING.name().toLowerCase())
+                .remark(registration.getRemark())
+                .processedAt(registration.getProcessedAt())
+                .processedBy(reviewer != null ? reviewer.getUsername() : null)
+                .processedByNickname(reviewer != null ? reviewer.getNickname() : null)
                 .build();
+    }
+
+    private void updateRegisteredCount(Event event) {
+        long approvedCount = registrationRepository.countByEventIdAndStatus(event.getId(), RegistrationStatus.APPROVED);
+        event.setRegistered(Math.toIntExact(approvedCount));
+        eventRepository.save(event);
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            throw new RuntimeException("未获取到当前登录用户信息");
+        }
+        return userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
     }
 }
 

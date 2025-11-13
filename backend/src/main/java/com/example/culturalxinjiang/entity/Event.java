@@ -76,6 +76,12 @@ public class Event {
     @Builder.Default
     private List<String> images = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "event_videos", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "video_url")
+    @Builder.Default
+    private List<String> videos = new ArrayList<>();
+
     @Embedded
     @AttributeOverrides({
         @AttributeOverride(name = "name", column = @Column(name = "organizer_name")),

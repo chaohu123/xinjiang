@@ -22,3 +22,4 @@ export const hasRole = (role: string | string[]): boolean => {
 export const isAdmin = (): boolean => {
   return hasRole('admin')
 }
+

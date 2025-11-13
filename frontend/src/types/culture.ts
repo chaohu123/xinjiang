@@ -22,3 +22,4 @@ export interface CultureResource {
   createdAt: string
   updatedAt: string
 }
+

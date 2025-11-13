@@ -19,6 +19,11 @@ public class EventRegistrationResponse {
     private String email;
     private String phone;
     private LocalDateTime registeredAt;
+    private String status;
+    private String remark;
+    private LocalDateTime processedAt;
+    private String processedBy;
+    private String processedByNickname;
 }
 
 

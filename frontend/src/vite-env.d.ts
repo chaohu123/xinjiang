@@ -17,3 +17,4 @@ declare module 'video.js' {
 declare module 'photoswipe' {
   export * from 'photoswipe'
 }
+
