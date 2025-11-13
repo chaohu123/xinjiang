@@ -219,10 +219,22 @@ public class AdminService {
         Pageable pageable = PageRequest.of(page - 1, size);
         Page<CommunityPost> postPage;
 
-        if (keyword != null && !keyword.trim().isEmpty()) {
+        String trimmedKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        String trimmedStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
+
+        // 根据参数情况选择不同的查询方法
+        if (trimmedStatus != null && trimmedKeyword != null) {
+            // 同时有状态和关键字，使用组合查询
+            postPage = communityPostRepository.findByStatusAndKeyword(trimmedStatus, trimmedKeyword, pageable);
+        } else if (trimmedStatus != null) {
+            // 只有状态
+            postPage = communityPostRepository.findByStatus(trimmedStatus, pageable);
+        } else if (trimmedKeyword != null) {
+            // 只有关键字
             postPage = communityPostRepository.findByTitleContainingOrContentContaining(
-                    keyword.trim(), keyword.trim(), pageable);
+                    trimmedKeyword, trimmedKeyword, pageable);
         } else {
+            // 都没有，查询所有
             postPage = communityPostRepository.findAllOrderByCreatedAtDesc(pageable);
         }
 
@@ -237,7 +249,7 @@ public class AdminService {
     public void approvePost(Long id) {
         CommunityPost post = communityPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("帖子不存在"));
-        // 如果将来需要状态字段，可以在这里设置状态为已通过
+        post.setStatus("approved");
         communityPostRepository.save(post);
     }
 
@@ -245,7 +257,7 @@ public class AdminService {
     public void rejectPost(Long id, String reason) {
         CommunityPost post = communityPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("帖子不存在"));
-        // 如果将来需要状态字段，可以在这里设置状态为已拒绝
+        post.setStatus("rejected");
         communityPostRepository.save(post);
     }
 
@@ -328,6 +340,7 @@ public class AdminService {
                 .likes(post.getLikes())
                 .comments(post.getComments())
                 .views(post.getViews())
+                .status(post.getStatus() != null ? post.getStatus() : "pending")
                 .isLiked(false) // 管理员查看时不需要点赞状态
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())

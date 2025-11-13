@@ -99,6 +99,63 @@
               :placeholder="$t('community.contentPlaceholder')"
             />
           </el-form-item>
+          <el-form-item label="图片">
+            <div class="image-upload-section">
+              <el-tabs v-model="imageUploadTab" class="image-upload-tabs">
+                <el-tab-pane label="本地上传" name="upload">
+                  <el-upload
+                    :file-list="uploadFileList"
+                    :action="''"
+                    :auto-upload="false"
+                    :on-change="handleFileChange"
+                    :on-remove="handleFileRemove"
+                    list-type="picture-card"
+                    :limit="9"
+                    accept="image/*"
+                  >
+                    <el-icon><Plus /></el-icon>
+                  </el-upload>
+                  <div style="margin-top: 10px">
+                    <el-button
+                      type="primary"
+                      size="small"
+                      :loading="uploading"
+                      @click="handleUploadImages"
+                    >
+                      上传图片
+                    </el-button>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="URL添加" name="url">
+                  <div class="url-input-section">
+                    <el-input
+                      v-model="imageUrlInput"
+                      placeholder="输入图片URL，按回车添加"
+                      @keyup.enter="addImageUrl"
+                    >
+                      <template #append>
+                        <el-button @click="addImageUrl">添加</el-button>
+                      </template>
+                    </el-input>
+                  </div>
+                </el-tab-pane>
+              </el-tabs>
+              <div v-if="createForm.images && createForm.images.length > 0" class="image-preview-list">
+                <div v-for="(img, index) in createForm.images" :key="index" class="image-preview-item">
+                  <el-image :src="img" fit="cover" class="preview-image" />
+                  <el-button
+                    type="danger"
+                    size="small"
+                    circle
+                    class="remove-image-btn"
+                    @click="removeImage(index)"
+                  >
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </el-form-item>
           <el-form-item label="标签">
             <el-input
               v-model="tagInput"
@@ -122,11 +179,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getCommunityPosts, createPost, likePost, unlikePost } from '@/api/community'
+import { getCommunityPosts, createPost, likePost, unlikePost, uploadImage } from '@/api/community'
 import type { CommunityPost } from '@/types/community'
+import type { UploadFile, UploadFiles } from 'element-plus'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { fromNow } from '@/utils'
-import { Plus, Star, ChatLineRound, Share } from '@element-plus/icons-vue'
+import { Plus, Star, ChatLineRound, Share, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const posts = ref<CommunityPost[]>([])
@@ -139,9 +197,14 @@ const showCreateDialog = ref(false)
 const createForm = ref({
   title: '',
   content: '',
+  images: [] as string[],
   tags: [] as string[],
 })
 const tagInput = ref('')
+const imageUploadTab = ref('upload')
+const uploadFileList = ref<UploadFiles>([])
+const imageUrlInput = ref('')
+const uploading = ref(false)
 
 const addTags = () => {
   if (tagInput.value.trim()) {
@@ -194,14 +257,97 @@ const handleLike = async (post: CommunityPost) => {
   }
 }
 
-const handleCreate = async () => {
+const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
+  uploadFileList.value = fileList
+}
+
+const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
+  uploadFileList.value = fileList
+}
+
+const handleUploadImages = async () => {
+  if (uploadFileList.value.length === 0) {
+    ElMessage.warning('请先选择要上传的图片')
+    return
+  }
+
+  uploading.value = true
   try {
-    await createPost(createForm.value)
+    const uploadPromises = uploadFileList.value.map(file => {
+      if (file.raw) {
+        return uploadImage(file.raw)
+      }
+      return Promise.resolve(null)
+    })
+
+    const results = await Promise.all(uploadPromises)
+    const uploadedUrls = results
+      .filter((result): result is { url: string; type: string } => result !== null)
+      .map(result => result.url)
+
+    createForm.value.images = [...createForm.value.images, ...uploadedUrls]
+    uploadFileList.value = []
+    ElMessage.success(`成功上传${uploadedUrls.length}张图片`)
+  } catch (error) {
+    console.error('Failed to upload images:', error)
+    ElMessage.error('图片上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+const addImageUrl = () => {
+  const url = imageUrlInput.value.trim()
+  if (!url) {
+    ElMessage.warning('请输入图片URL')
+    return
+  }
+
+  // 简单的URL验证
+  try {
+    new URL(url)
+    if (!createForm.value.images.includes(url)) {
+      createForm.value.images.push(url)
+      imageUrlInput.value = ''
+      ElMessage.success('图片URL已添加')
+    } else {
+      ElMessage.warning('该图片URL已存在')
+    }
+  } catch (error) {
+    ElMessage.error('请输入有效的图片URL')
+  }
+}
+
+const removeImage = (index: number) => {
+  createForm.value.images.splice(index, 1)
+}
+
+const handleCreate = async () => {
+  if (!createForm.value.title.trim()) {
+    ElMessage.warning('请输入标题')
+    return
+  }
+  if (!createForm.value.content.trim()) {
+    ElMessage.warning('请输入内容')
+    return
+  }
+
+  try {
+    await createPost({
+      title: createForm.value.title,
+      content: createForm.value.content,
+      images: createForm.value.images,
+      tags: createForm.value.tags,
+    })
     ElMessage.success('发布成功')
     showCreateDialog.value = false
-    createForm.value = { title: '', content: '', tags: [] }
+    createForm.value = { title: '', content: '', images: [], tags: [] }
+    uploadFileList.value = []
+    imageUrlInput.value = ''
+    imageUploadTab.value = 'upload'
     loadPosts()
   } catch (error) {
+    console.error('Failed to create post:', error)
     ElMessage.error('发布失败')
   }
 }
@@ -326,5 +472,55 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 40px;
+}
+
+.image-upload-section {
+  width: 100%;
+}
+
+.image-upload-tabs {
+  margin-bottom: 20px;
+}
+
+.url-input-section {
+  margin-top: 10px;
+}
+
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.image-preview-item {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #dcdfe6;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: white;
+
+  &:hover {
+    background: rgba(245, 108, 108, 0.8);
+  }
 }
 </style>

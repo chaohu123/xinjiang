@@ -366,6 +366,7 @@ CREATE TABLE IF NOT EXISTS community_posts (
     likes INTEGER NOT NULL DEFAULT 0,
     comments INTEGER NOT NULL DEFAULT 0,
     views INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_community_posts_author
@@ -379,6 +380,7 @@ CALL create_index_if_not_exists('community_posts', 'idx_community_posts_author',
 CALL create_index_if_not_exists('community_posts', 'idx_community_posts_likes', '(likes DESC)');
 CALL create_index_if_not_exists('community_posts', 'idx_community_posts_comments', '(comments DESC)');
 CALL create_index_if_not_exists('community_posts', 'idx_community_posts_created_at', '(created_at DESC)');
+CALL create_index_if_not_exists('community_posts', 'idx_community_posts_status', '(status)');
 -- MySQL 全文搜索索引（可选，需要 InnoDB 5.6+）
 -- CREATE FULLTEXT INDEX idx_community_posts_title ON community_posts(title);
 

@@ -42,4 +42,16 @@ export const commentPost = (id: number, content: string) => {
   return request.post(`/community/posts/${id}/comments`, { content })
 }
 
+// 上传图片
+export const uploadImage = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post<{ url: string; type: string }>('/admin/events/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
+
 

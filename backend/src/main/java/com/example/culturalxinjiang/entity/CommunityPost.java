@@ -60,6 +60,10 @@ public class CommunityPost {
     @Builder.Default
     private Integer views = 0;
 
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String status = "pending";
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Comment> commentList = new ArrayList<>();
@@ -76,6 +80,7 @@ public class CommunityPost {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 }
+
 
 
 
