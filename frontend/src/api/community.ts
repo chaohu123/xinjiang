@@ -42,3 +42,4 @@ export const commentPost = (id: number, content: string) => {
   return request.post(`/community/posts/${id}/comments`, { content })
 }
 
+

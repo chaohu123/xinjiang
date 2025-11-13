@@ -18,3 +18,4 @@ declare module 'photoswipe' {
   export * from 'photoswipe'
 }
 
+

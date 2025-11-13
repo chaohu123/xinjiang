@@ -54,3 +54,4 @@ export const getFavorites = (params: { page?: number; size?: number }) => {
   return request.get<SearchResponse>('/user/favorites', { params })
 }
 
+

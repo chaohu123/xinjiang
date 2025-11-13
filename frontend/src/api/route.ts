@@ -21,3 +21,4 @@ export const generateRoute = (data: {
   return request.post<RouteDetail>('/routes/generate', data)
 }
 
+
