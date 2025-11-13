@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://db:5432/cultural_xinjiang}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+
+jwt:
+  secret: ${JWT_SECRET:xinjiang-digital-culture-platform-secret-key-2024}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
+    access-key-id: ${ALIYUN_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET:}
+    bucket-name: ${ALIYUN_BUCKET_NAME:}
+    url-prefix: ${ALIYUN_OSS_URL_PREFIX:}
+
+logging:
+  level:
+    root: WARN
+    com.example.culturalxinjiang: INFO
+
+
+
+
+
+
