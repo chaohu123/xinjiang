@@ -36,7 +36,7 @@ public class EventService {
     public PageResponse<EventResponse> getEvents(String month, Event.EventStatus status, Event.EventType type, Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page - 1, size);
         Page<Event> eventPage;
-        
+
         // 如果指定了 status，使用 status 查询
         if (status != null) {
             eventPage = eventRepository.findByStatus(status, pageable);
@@ -48,7 +48,7 @@ public class EventService {
             // 否则查询所有事件
             eventPage = eventRepository.findAll(pageable);
         }
-        
+
         List<EventResponse> responses = eventPage.getContent().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -122,7 +122,7 @@ public class EventService {
         // 显式访问懒加载集合，确保在事务内加载
         List<String> images = event.getImages() != null ? new ArrayList<>(event.getImages()) : new ArrayList<>();
         List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
-        
+
         EventResponse.EventLocation location = null;
         if (event.getLocation() != null) {
             location = new EventResponse.EventLocation(
@@ -162,7 +162,7 @@ public class EventService {
         response.setType(event.getType());
         response.setStartDate(event.getStartDate());
         response.setEndDate(event.getEndDate());
-        
+
         if (event.getLocation() != null) {
             response.setLocation(new EventResponse.EventLocation(
                     event.getLocation().getName(),
@@ -171,13 +171,13 @@ public class EventService {
                     event.getLocation().getLng()
             ));
         }
-        
+
         response.setCapacity(event.getCapacity());
         response.setRegistered(event.getRegistered());
         response.setPrice(event.getPrice());
         response.setStatus(event.getStatus());
         response.setCreatedAt(event.getCreatedAt());
-        
+
         // Set detail fields
         response.setContent(event.getContent());
         // 显式访问懒加载集合，确保在事务内加载
@@ -185,14 +185,14 @@ public class EventService {
         response.setImages(images);
         List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
         response.setVideos(videos);
-        
+
         if (event.getOrganizer() != null) {
             response.setOrganizer(new EventDetailResponse.Organizer(
                     event.getOrganizer().getName(),
                     event.getOrganizer().getContact()
             ));
         }
-        
+
         // 显式访问懒加载集合
         List<Event.ScheduleItem> schedule = event.getSchedule() != null ? new ArrayList<>(event.getSchedule()) : new ArrayList<>();
         response.setSchedule(schedule.stream()
@@ -200,7 +200,7 @@ public class EventService {
                 .collect(Collectors.toList()));
         List<String> requirements = event.getRequirements() != null ? new ArrayList<>(event.getRequirements()) : new ArrayList<>();
         response.setRequirements(requirements);
-        
+
         return response;
     }
 }

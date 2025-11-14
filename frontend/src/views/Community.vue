@@ -57,14 +57,11 @@
               </el-tag>
             </div>
             <div class="post-actions">
-              <el-button text @click="handleLike(post)">
-                <el-icon class="like-icon">
-                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
-                    <path d="M885.9 533.7c16.8-22.2 26.1-49.4 26.1-77.7 0-44.9-25.1-87.4-65.5-111.1a67.67 67.67 0 0 0-34.3-9.3H572.4l6-122.9c1.4-29.7-8.1-59.2-26.5-82.3-18.4-23.1-44.6-38.7-73.8-44.4a67.67 67.67 0 0 0-51.1 11.3l-385.4 252.2a41.3 41.3 0 0 0-15.3 48.3l87.2 273.4c8.6 27.1 33.1 45.5 61.4 45.5h258.1c16.8 0 33.1-6.5 45.3-18.1l226.1-207.6a101.55 101.55 0 0 0 25.4-33.7zM112 528v364.7c0 17.7 14.9 32.7 32.7 32.7h267.2V495.3H112z" fill="currentColor"/>
-                  </svg>
-                </el-icon>
-                {{ post.likes }}
-              </el-button>
+              <LikeButton
+                :initial-count="post.likes"
+                :initial-active="post.isLiked || false"
+                @like-toggled="(isActive) => handleLikeToggle(post, isActive)"
+              />
               <el-button text>
                 <el-icon><ChatLineRound /></el-icon>
                 {{ post.comments }}
@@ -187,6 +184,7 @@ import { getCommunityPosts, createPost, likePost, unlikePost, uploadImage } from
 import type { CommunityPost } from '@/types/community'
 import type { UploadFile, UploadFiles } from 'element-plus'
 import EmptyState from '@/components/common/EmptyState.vue'
+import LikeButton from '@/components/common/LikeButton.vue'
 import { fromNow } from '@/utils'
 import { Plus, Star, ChatLineRound, Share, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -245,19 +243,22 @@ const handlePageChange = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-const handleLike = async (post: CommunityPost) => {
+const handleLikeToggle = async (post: CommunityPost, isActive: boolean) => {
   try {
-    if (post.isLiked) {
-      await unlikePost(post.id)
-      post.likes--
-      post.isLiked = false
-    } else {
+    if (isActive) {
       await likePost(post.id)
-      post.likes++
+      post.likes = (post.likes || 0) + 1
       post.isLiked = true
+    } else {
+      await unlikePost(post.id)
+      post.likes = Math.max(0, (post.likes || 0) - 1)
+      post.isLiked = false
     }
   } catch (error) {
     ElMessage.error('操作失败')
+    // 回滚状态
+    post.isLiked = !isActive
+    post.likes = isActive ? Math.max(0, (post.likes || 0) - 1) : (post.likes || 0) + 1
   }
 }
 
@@ -470,17 +471,7 @@ onMounted(() => {
 .post-actions {
   display: flex;
   gap: 8px;
-}
-
-.like-icon {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
 }
 
 .pagination {

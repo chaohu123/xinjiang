@@ -27,6 +27,24 @@ export const createPost = (data: {
   return request.post<CommunityPostDetail>('/community/posts', data)
 }
 
+// 更新帖子
+export const updatePost = (
+  id: number,
+  data: {
+    title: string
+    content: string
+    images?: string[]
+    tags?: string[]
+  }
+) => {
+  return request.put<CommunityPostDetail>(`/community/posts/${id}`, data)
+}
+
+// 删除帖子
+export const deletePost = (id: number) => {
+  return request.delete(`/community/posts/${id}`)
+}
+
 // 点赞帖子
 export const likePost = (id: number) => {
   return request.post(`/community/posts/${id}/like`)

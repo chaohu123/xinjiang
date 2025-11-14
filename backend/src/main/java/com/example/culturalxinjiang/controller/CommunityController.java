@@ -2,6 +2,7 @@ package com.example.culturalxinjiang.controller;
 
 import com.example.culturalxinjiang.dto.request.CommentRequest;
 import com.example.culturalxinjiang.dto.request.CreatePostRequest;
+import com.example.culturalxinjiang.dto.request.UpdatePostRequest;
 import com.example.culturalxinjiang.dto.response.ApiResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostDetailResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
@@ -38,6 +39,20 @@ public class CommunityController {
     public ApiResponse<CommunityPostDetailResponse> createPost(@Valid @RequestBody CreatePostRequest request) {
         CommunityPostDetailResponse response = communityService.createPost(request);
         return ApiResponse.success(response);
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<CommunityPostDetailResponse> updatePost(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdatePostRequest request) {
+        CommunityPostDetailResponse response = communityService.updatePost(id, request);
+        return ApiResponse.success(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deletePost(@PathVariable Long id) {
+        communityService.deletePost(id);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/{id}/like")

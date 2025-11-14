@@ -2,6 +2,7 @@ package com.example.culturalxinjiang.service;
 
 import com.example.culturalxinjiang.dto.request.CommentRequest;
 import com.example.culturalxinjiang.dto.request.CreatePostRequest;
+import com.example.culturalxinjiang.dto.request.UpdatePostRequest;
 import com.example.culturalxinjiang.dto.response.CommunityPostDetailResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
@@ -84,6 +85,44 @@ public class CommunityService {
 
         post = postRepository.save(post);
         return mapToDetailResponse(post);
+    }
+
+    @Transactional
+    public CommunityPostDetailResponse updatePost(Long postId, UpdatePostRequest request) {
+        User user = getCurrentUser();
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("帖子不存在"));
+
+        // 检查是否是帖子作者
+        if (!post.getAuthor().getId().equals(user.getId())) {
+            throw new RuntimeException("无权修改此帖子");
+        }
+
+        post.setTitle(request.getTitle());
+        post.setContent(request.getContent());
+        if (request.getImages() != null) {
+            post.setImages(new ArrayList<>(request.getImages()));
+        }
+        if (request.getTags() != null) {
+            post.setTags(new ArrayList<>(request.getTags()));
+        }
+
+        post = postRepository.save(post);
+        return mapToDetailResponse(post);
+    }
+
+    @Transactional
+    public void deletePost(Long postId) {
+        User user = getCurrentUser();
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("帖子不存在"));
+
+        // 检查是否是帖子作者
+        if (!post.getAuthor().getId().equals(user.getId())) {
+            throw new RuntimeException("无权删除此帖子");
+        }
+
+        postRepository.delete(post);
     }
 
     @Transactional
