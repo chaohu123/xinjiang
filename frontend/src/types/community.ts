@@ -13,13 +13,15 @@ export interface CommunityPost {
   comments: number
   views: number
   isLiked?: boolean
+  isFavorited?: boolean
   status?: 'pending' | 'approved' | 'rejected'
   createdAt: string
   updatedAt: string
 }
 
 export interface CommunityPostDetail extends CommunityPost {
-  comments: Comment[]
+  comments?: Comment[]
+  commentList?: Comment[]
 }
 
 export interface Comment {

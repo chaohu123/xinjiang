@@ -57,6 +57,54 @@ public class CommunityController {
         communityService.commentPost(id, request);
         return ApiResponse.success(null);
     }
+
+    @GetMapping("/my")
+    public ApiResponse<PageResponse<CommunityPostResponse>> getMyPosts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<CommunityPostResponse> response = communityService.getMyPosts(page, size);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/liked")
+    public ApiResponse<PageResponse<CommunityPostResponse>> getLikedPosts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<CommunityPostResponse> response = communityService.getLikedPosts(page, size);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/commented")
+    public ApiResponse<PageResponse<CommunityPostResponse>> getCommentedPosts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<CommunityPostResponse> response = communityService.getCommentedPosts(page, size);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/favorites")
+    public ApiResponse<PageResponse<CommunityPostResponse>> getFavoritePosts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<CommunityPostResponse> response = communityService.getFavoritePosts(page, size);
+        return ApiResponse.success(response);
+    }
+
+    @PostMapping("/{id}/favorite")
+    public ApiResponse<Void> favoritePost(@PathVariable Long id) {
+        communityService.favoritePost(id);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/{id}/favorite")
+    public ApiResponse<Void> unfavoritePost(@PathVariable Long id) {
+        communityService.unfavoritePost(id);
+        return ApiResponse.success(null);
+    }
 }
 
 

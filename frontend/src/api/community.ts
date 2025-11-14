@@ -42,6 +42,44 @@ export const commentPost = (id: number, content: string) => {
   return request.post(`/community/posts/${id}/comments`, { content })
 }
 
+// 获取我的帖子
+export const getMyPosts = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: CommunityPost[]; total: number }>('/community/posts/my', {
+    params,
+  })
+}
+
+// 获取点赞的帖子
+export const getLikedPosts = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: CommunityPost[]; total: number }>('/community/posts/liked', {
+    params,
+  })
+}
+
+// 获取评论的帖子
+export const getCommentedPosts = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: CommunityPost[]; total: number }>('/community/posts/commented', {
+    params,
+  })
+}
+
+// 获取收藏的帖子
+export const getFavoritePosts = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: CommunityPost[]; total: number }>('/community/posts/favorites', {
+    params,
+  })
+}
+
+// 收藏帖子
+export const favoritePost = (id: number) => {
+  return request.post(`/community/posts/${id}/favorite`)
+}
+
+// 取消收藏帖子
+export const unfavoritePost = (id: number) => {
+  return request.delete(`/community/posts/${id}/favorite`)
+}
+
 // 上传图片
 export const uploadImage = (file: File) => {
   const formData = new FormData()
@@ -52,6 +90,7 @@ export const uploadImage = (file: File) => {
     },
   })
 }
+
 
 
 

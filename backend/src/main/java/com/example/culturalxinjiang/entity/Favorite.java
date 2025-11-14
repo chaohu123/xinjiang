@@ -42,9 +42,10 @@ public class Favorite {
     private LocalDateTime createdAt;
 
     public enum ResourceType {
-        CULTURE, ROUTE
+        CULTURE, ROUTE, POST
     }
 }
+
 
 
 

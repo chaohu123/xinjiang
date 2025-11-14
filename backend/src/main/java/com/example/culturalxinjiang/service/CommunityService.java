@@ -11,6 +11,7 @@ import com.example.culturalxinjiang.entity.PostLike;
 import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.CommentRepository;
 import com.example.culturalxinjiang.repository.CommunityPostRepository;
+import com.example.culturalxinjiang.repository.FavoriteRepository;
 import com.example.culturalxinjiang.repository.PostLikeRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class CommunityService {
     private final CommentRepository commentRepository;
     private final PostLikeRepository postLikeRepository;
     private final UserRepository userRepository;
+    private final FavoriteRepository favoriteRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<CommunityPostResponse> getPosts(String sort, Integer page, Integer size) {
@@ -158,9 +160,14 @@ public class CommunityService {
         List<String> tags = post.getTags() != null ? new ArrayList<>(post.getTags()) : new ArrayList<>();
 
         boolean isLiked = false;
+        boolean isFavorited = false;
         try {
             User currentUser = getCurrentUser();
             isLiked = postLikeRepository.existsByUserIdAndPostId(currentUser.getId(), post.getId());
+            isFavorited = favoriteRepository.existsByUserIdAndResourceTypeAndResourceId(
+                    currentUser.getId(),
+                    com.example.culturalxinjiang.entity.Favorite.ResourceType.POST,
+                    post.getId());
         } catch (Exception e) {
             // User not authenticated
         }
@@ -176,6 +183,7 @@ public class CommunityService {
                 .comments(post.getComments())
                 .views(post.getViews())
                 .isLiked(isLiked)
+                .isFavorited(isFavorited)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();
@@ -186,7 +194,7 @@ public class CommunityService {
         var author = post.getAuthor();
         List<String> images = post.getImages() != null ? new ArrayList<>(post.getImages()) : new ArrayList<>();
         List<String> tags = post.getTags() != null ? new ArrayList<>(post.getTags()) : new ArrayList<>();
-        
+
         CommunityPostDetailResponse response = new CommunityPostDetailResponse();
         response.setId(post.getId());
         response.setTitle(post.getTitle());
@@ -203,13 +211,19 @@ public class CommunityService {
         response.setViews(post.getViews());
 
         boolean isLiked = false;
+        boolean isFavorited = false;
         try {
             User currentUser = getCurrentUser();
             isLiked = postLikeRepository.existsByUserIdAndPostId(currentUser.getId(), post.getId());
+            isFavorited = favoriteRepository.existsByUserIdAndResourceTypeAndResourceId(
+                    currentUser.getId(),
+                    com.example.culturalxinjiang.entity.Favorite.ResourceType.POST,
+                    post.getId());
         } catch (Exception e) {
             // User not authenticated
         }
         response.setIsLiked(isLiked);
+        response.setIsFavorited(isFavorited);
 
         response.setCreatedAt(post.getCreatedAt());
         response.setUpdatedAt(post.getUpdatedAt());
@@ -256,6 +270,183 @@ public class CommunityService {
                 .collect(Collectors.toList()));
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CommunityPostResponse> getMyPosts(Integer page, Integer size) {
+        User user = getCurrentUser();
+        Pageable pageable = PageRequest.of(page - 1, size);
+        Page<CommunityPost> postPage = postRepository.findByAuthorId(user.getId(), pageable);
+
+        List<CommunityPostResponse> responses = postPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(responses, postPage.getTotalElements(), page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CommunityPostResponse> getLikedPosts(Integer page, Integer size) {
+        User user = getCurrentUser();
+        Pageable pageable = PageRequest.of(page - 1, size);
+        List<PostLike> likes = postLikeRepository.findByUserId(user.getId());
+
+        List<Long> postIds = likes.stream()
+                .map(like -> like.getPost().getId())
+                .collect(Collectors.toList());
+
+        if (postIds.isEmpty()) {
+            return PageResponse.of(new ArrayList<>(), 0L, page, size);
+        }
+
+        List<CommunityPost> posts = postRepository.findAllById(postIds);
+        // Sort by like time (most recent first)
+        posts.sort((a, b) -> {
+            PostLike likeA = likes.stream()
+                    .filter(l -> l.getPost().getId().equals(a.getId()))
+                    .findFirst()
+                    .orElse(null);
+            PostLike likeB = likes.stream()
+                    .filter(l -> l.getPost().getId().equals(b.getId()))
+                    .findFirst()
+                    .orElse(null);
+            if (likeA == null || likeB == null) return 0;
+            return likeB.getCreatedAt().compareTo(likeA.getCreatedAt());
+        });
+
+        // Apply pagination manually
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, posts.size());
+        List<CommunityPost> paginatedPosts = start < posts.size() ? posts.subList(start, end) : new ArrayList<>();
+
+        List<CommunityPostResponse> responses = paginatedPosts.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(responses, (long) posts.size(), page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CommunityPostResponse> getCommentedPosts(Integer page, Integer size) {
+        User user = getCurrentUser();
+        Pageable pageable = PageRequest.of(page - 1, size);
+        List<Comment> comments = commentRepository.findByAuthorId(user.getId());
+
+        List<Long> postIds = comments.stream()
+                .map(comment -> comment.getPost().getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (postIds.isEmpty()) {
+            return PageResponse.of(new ArrayList<>(), 0L, page, size);
+        }
+
+        List<CommunityPost> posts = postRepository.findAllById(postIds);
+        // Sort by most recent comment time
+        posts.sort((a, b) -> {
+            Comment commentA = comments.stream()
+                    .filter(c -> c.getPost().getId().equals(a.getId()))
+                    .max((c1, c2) -> c1.getCreatedAt().compareTo(c2.getCreatedAt()))
+                    .orElse(null);
+            Comment commentB = comments.stream()
+                    .filter(c -> c.getPost().getId().equals(b.getId()))
+                    .max((c1, c2) -> c1.getCreatedAt().compareTo(c2.getCreatedAt()))
+                    .orElse(null);
+            if (commentA == null || commentB == null) return 0;
+            return commentB.getCreatedAt().compareTo(commentA.getCreatedAt());
+        });
+
+        // Apply pagination manually
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, posts.size());
+        List<CommunityPost> paginatedPosts = start < posts.size() ? posts.subList(start, end) : new ArrayList<>();
+
+        List<CommunityPostResponse> responses = paginatedPosts.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(responses, (long) posts.size(), page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CommunityPostResponse> getFavoritePosts(Integer page, Integer size) {
+        User user = getCurrentUser();
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        // Get all favorites of type POST for current user
+        List<com.example.culturalxinjiang.entity.Favorite> favorites =
+                favoriteRepository.findByUserId(user.getId(), pageable).getContent()
+                .stream()
+                .filter(f -> f.getResourceType() == com.example.culturalxinjiang.entity.Favorite.ResourceType.POST)
+                .collect(Collectors.toList());
+
+        List<Long> postIds = favorites.stream()
+                .map(com.example.culturalxinjiang.entity.Favorite::getResourceId)
+                .collect(Collectors.toList());
+
+        if (postIds.isEmpty()) {
+            return PageResponse.of(new ArrayList<>(), 0L, page, size);
+        }
+
+        List<CommunityPost> posts = postRepository.findAllById(postIds);
+        // Sort by favorite time (most recent first)
+        posts.sort((a, b) -> {
+            com.example.culturalxinjiang.entity.Favorite favA = favorites.stream()
+                    .filter(f -> f.getResourceId().equals(a.getId()))
+                    .findFirst()
+                    .orElse(null);
+            com.example.culturalxinjiang.entity.Favorite favB = favorites.stream()
+                    .filter(f -> f.getResourceId().equals(b.getId()))
+                    .findFirst()
+                    .orElse(null);
+            if (favA == null || favB == null) return 0;
+            return favB.getCreatedAt().compareTo(favA.getCreatedAt());
+        });
+
+        // Apply pagination manually
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, posts.size());
+        List<CommunityPost> paginatedPosts = start < posts.size() ? posts.subList(start, end) : new ArrayList<>();
+
+        List<CommunityPostResponse> responses = paginatedPosts.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(responses, (long) posts.size(), page, size);
+    }
+
+    @Transactional
+    public void favoritePost(Long postId) {
+        User user = getCurrentUser();
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("帖子不存在"));
+
+        if (favoriteRepository.existsByUserIdAndResourceTypeAndResourceId(
+                user.getId(),
+                com.example.culturalxinjiang.entity.Favorite.ResourceType.POST,
+                postId)) {
+            throw new RuntimeException("已经收藏过");
+        }
+
+        com.example.culturalxinjiang.entity.Favorite favorite = com.example.culturalxinjiang.entity.Favorite.builder()
+                .user(user)
+                .resourceType(com.example.culturalxinjiang.entity.Favorite.ResourceType.POST)
+                .resourceId(postId)
+                .build();
+        favoriteRepository.save(favorite);
+    }
+
+    @Transactional
+    public void unfavoritePost(Long postId) {
+        User user = getCurrentUser();
+
+        com.example.culturalxinjiang.entity.Favorite favorite = favoriteRepository.findByUserIdAndResourceTypeAndResourceId(
+                user.getId(),
+                com.example.culturalxinjiang.entity.Favorite.ResourceType.POST,
+                postId)
+                .orElseThrow(() -> new RuntimeException("未收藏"));
+
+        favoriteRepository.delete(favorite);
     }
 }
 

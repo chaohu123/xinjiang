@@ -24,6 +24,7 @@ public class CommunityPostResponse {
     private Integer views;
     private String status;
     private Boolean isLiked;
+    private Boolean isFavorited;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

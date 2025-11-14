@@ -33,6 +33,9 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, Lo
             @Param("status") String status,
             @Param("keyword") String keyword,
             Pageable pageable);
+
+    @Query("SELECT p FROM CommunityPost p WHERE p.author.id = :userId ORDER BY p.createdAt DESC")
+    Page<CommunityPost> findByAuthorId(@Param("userId") Long userId, Pageable pageable);
 }
 
 

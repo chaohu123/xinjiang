@@ -22,13 +22,13 @@ CREATE PROCEDURE create_index_if_not_exists(
 )
 BEGIN
     DECLARE index_count INT DEFAULT 0;
-    
+
     SELECT COUNT(*) INTO index_count
     FROM information_schema.statistics
     WHERE table_schema = DATABASE()
     AND table_name = p_table_name
     AND index_name = p_index_name;
-    
+
     IF index_count = 0 THEN
         SET @sql = CONCAT('CREATE INDEX ', p_index_name, ' ON ', p_table_name, ' ', p_index_definition);
         PREPARE stmt FROM @sql;
@@ -515,7 +515,9 @@ DELIMITER ;
 -- INSERT INTO users (username, email, password, role, enabled)
 -- VALUES ('admin', 'admin@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN', TRUE)
 -- ON DUPLICATE KEY UPDATE username = username;
-
+ALTER TABLE favorites MODIFY COLUMN resource_type VARCHAR(20) NOT NULL;
+ALTER TABLE favorites DROP CHECK chk_favorite_resource_type;
+ALTER TABLE favorites ADD CONSTRAINT chk_favorite_resource_type CHECK (resource_type IN ('CULTURE', 'ROUTE', 'POST'));
 -- =====================================================
 -- 清理临时存储过程
 -- =====================================================

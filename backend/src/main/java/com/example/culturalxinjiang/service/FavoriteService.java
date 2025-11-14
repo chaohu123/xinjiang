@@ -6,6 +6,7 @@ import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.entity.Favorite;
 import com.example.culturalxinjiang.entity.Route;
 import com.example.culturalxinjiang.entity.User;
+import com.example.culturalxinjiang.repository.CommunityPostRepository;
 import com.example.culturalxinjiang.repository.CultureResourceRepository;
 import com.example.culturalxinjiang.repository.FavoriteRepository;
 import com.example.culturalxinjiang.repository.RouteRepository;
@@ -31,6 +32,7 @@ public class FavoriteService {
     private final UserRepository userRepository;
     private final CultureResourceRepository cultureResourceRepository;
     private final RouteRepository routeRepository;
+    private final CommunityPostRepository communityPostRepository;
 
     @Transactional
     public void favoriteResource(Favorite.ResourceType resourceType, Long resourceId) {
@@ -53,6 +55,10 @@ public class FavoriteService {
             Route route = routeRepository.findById(resourceId).get();
             route.setFavorites(route.getFavorites() + 1);
             routeRepository.save(route);
+        } else if (resourceType == Favorite.ResourceType.POST) {
+            communityPostRepository.findById(resourceId)
+                    .orElseThrow(() -> new RuntimeException("帖子不存在"));
+            // Posts don't have a favorites count field, so we just save the favorite
         }
 
         Favorite favorite = Favorite.builder()
@@ -82,6 +88,8 @@ public class FavoriteService {
             Route route = routeRepository.findById(resourceId).get();
             route.setFavorites(Math.max(0, route.getFavorites() - 1));
             routeRepository.save(route);
+        } else if (resourceType == Favorite.ResourceType.POST) {
+            // Posts don't have a favorites count field, so we just delete the favorite
         }
     }
 
@@ -119,7 +127,7 @@ public class FavoriteService {
         // 这会在 Session 开启时触发懒加载，避免序列化时 Session 已关闭的问题
         List<String> images = resource.getImages() != null ? new ArrayList<>(resource.getImages()) : new ArrayList<>();
         List<String> tags = resource.getTags() != null ? new ArrayList<>(resource.getTags()) : new ArrayList<>();
-        
+
         CultureResourceResponse.Location location = null;
         if (resource.getLocation() != null) {
             location = new CultureResourceResponse.Location(
