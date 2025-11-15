@@ -128,7 +128,7 @@
               <el-button
                 v-if="!userStore.isLoggedIn"
                 type="primary"
-                @click="$router.push('/login')"
+                @click="requireAuth('请先登录后再评论', router)"
               >
                 登录后评论
               </el-button>
@@ -224,6 +224,7 @@ import LikeButton from '@/components/common/LikeButton.vue'
 import { Star, Share, ArrowLeft, View, ChatLineRound, Message, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
+import { requireAuth } from '@/utils/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -273,6 +274,19 @@ const loadDetail = async () => {
 
 const handleLikeToggle = async (isActive: boolean) => {
   if (!postDetail.value) return
+
+  // 检查登录状态
+  if (!requireAuth('请先登录后再点赞', router)) {
+    // 如果未登录，回滚状态
+    if (postDetail.value) {
+      postDetail.value.isLiked = !isActive
+      postDetail.value.likes = isActive
+        ? Math.max(0, (postDetail.value.likes || 0) - 1)
+        : (postDetail.value.likes || 0) + 1
+    }
+    return
+  }
+
   try {
     if (isActive) {
       await likePost(postDetail.value.id)
@@ -283,8 +297,8 @@ const handleLikeToggle = async (isActive: boolean) => {
       postDetail.value.likes = Math.max(0, (postDetail.value.likes || 0) - 1)
       postDetail.value.isLiked = false
     }
-  } catch (error) {
-    ElMessage.error('操作失败')
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '操作失败')
     // 回滚状态
     if (postDetail.value) {
       postDetail.value.isLiked = !isActive
@@ -332,11 +346,12 @@ const handleComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    router.push('/login')
+
+  // 检查登录状态
+  if (!requireAuth('请先登录后再评论', router)) {
     return
   }
+
   commenting.value = true
   try {
     await commentPost(postDetail.value.id, commentContent.value)
@@ -350,8 +365,11 @@ const handleComment = async () => {
         commentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     }, 100)
-  } catch (error) {
-    ElMessage.error('评论失败')
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error.message || '评论失败'
+    if (error.response?.status !== 401) {
+      ElMessage.error(errorMessage)
+    }
   } finally {
     commenting.value = false
   }
@@ -359,6 +377,12 @@ const handleComment = async () => {
 
 const handleFavorite = async () => {
   if (!postDetail.value) return
+
+  // 检查登录状态
+  if (!requireAuth('请先登录后再收藏', router)) {
+    return
+  }
+
   try {
     if (postDetail.value.isFavorited) {
       await unfavoritePost(postDetail.value.id)
@@ -370,7 +394,10 @@ const handleFavorite = async () => {
       ElMessage.success('收藏成功')
     }
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '操作失败')
+    const errorMessage = error?.response?.data?.message || error.message || '操作失败'
+    if (error.response?.status !== 401) {
+      ElMessage.error(errorMessage)
+    }
   }
 }
 

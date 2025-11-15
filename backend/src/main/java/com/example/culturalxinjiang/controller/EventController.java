@@ -54,6 +54,15 @@ public class EventController {
         eventService.cancelEventRegistration(id);
         return ApiResponse.success(null);
     }
+
+    @GetMapping("/my-registrations")
+    public ApiResponse<PageResponse<EventResponse>> getMyRegisteredEvents(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<EventResponse> response = eventService.getMyRegisteredEvents(page, size);
+        return ApiResponse.success(response);
+    }
 }
 
 

@@ -14,7 +14,7 @@
               {{ formatDate(eventDetail.startDate, 'YYYY-MM-DD') }} ~
               {{ formatDate(eventDetail.endDate, 'YYYY-MM-DD') }}
             </span>
-            <span>
+            <span v-if="eventDetail.location">
               <el-icon><Location /></el-icon>
               {{ eventDetail.location.name }} - {{ eventDetail.location.address }}
             </span>
@@ -67,7 +67,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getEventDetail, registerEvent } from '@/api/event'
 import type { EventDetail } from '@/types/event'
 import ImageGallery from '@/components/common/ImageGallery.vue'
@@ -75,8 +75,10 @@ import VideoPlayer from '@/components/common/VideoPlayer.vue'
 import { formatDate } from '@/utils'
 import { Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { requireAuth } from '@/utils/auth'
 
 const route = useRoute()
+const router = useRouter()
 const eventDetail = ref<EventDetail | null>(null)
 const loading = ref(false)
 
@@ -86,7 +88,7 @@ const getStatusType = (status: string) => {
     ongoing: 'warning',
     past: 'info',
   }
-  return map[status] || ''
+  return map[status] || 'info'
 }
 
 const getStatusText = (status: string) => {
@@ -103,7 +105,13 @@ const loadDetail = async () => {
   loading.value = true
   try {
     const data = await getEventDetail(id)
-    eventDetail.value = data
+    // Ensure images array is properly initialized
+    eventDetail.value = {
+      ...data,
+      images: Array.isArray(data.images) ? data.images.filter(img => img && img.trim()) : [],
+      videos: Array.isArray(data.videos) ? data.videos.filter(video => video && video.trim()) : [],
+      schedule: Array.isArray(data.schedule) ? data.schedule : [],
+    }
   } catch (error) {
     console.error('Failed to load event detail:', error)
   } finally {
@@ -113,12 +121,23 @@ const loadDetail = async () => {
 
 const handleRegister = async () => {
   if (!eventDetail.value) return
+
+  // 检查登录状态
+  if (!requireAuth('请先登录后再报名', router)) {
+    return
+  }
+
   try {
     await registerEvent(eventDetail.value.id)
     ElMessage.success('报名成功')
     loadDetail()
-  } catch (error) {
-    ElMessage.error('报名失败')
+  } catch (error: any) {
+    // 如果是401错误，说明未登录，已经在axios拦截器中处理
+    // 其他错误显示具体错误信息
+    const errorMessage = error.response?.data?.message || error.message || '报名失败'
+    if (error.response?.status !== 401) {
+      ElMessage.error(errorMessage)
+    }
   }
 }
 

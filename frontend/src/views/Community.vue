@@ -3,7 +3,7 @@
     <div class="container">
       <div class="page-header">
         <h1>{{ $t('community.title') }}</h1>
-        <el-button type="primary" @click="showCreateDialog = true">
+        <el-button type="primary" @click="handleCreatePostClick">
           <el-icon><Plus /></el-icon>
           {{ $t('community.createPost') }}
         </el-button>
@@ -180,6 +180,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getCommunityPosts, createPost, likePost, unlikePost, uploadImage } from '@/api/community'
 import type { CommunityPost } from '@/types/community'
 import type { UploadFile, UploadFiles } from 'element-plus'
@@ -188,7 +189,9 @@ import LikeButton from '@/components/common/LikeButton.vue'
 import { fromNow } from '@/utils'
 import { Plus, Star, ChatLineRound, Share, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { requireAuth } from '@/utils/auth'
 
+const router = useRouter()
 const posts = ref<CommunityPost[]>([])
 const loading = ref(false)
 const total = ref(0)
@@ -244,6 +247,14 @@ const handlePageChange = () => {
 }
 
 const handleLikeToggle = async (post: CommunityPost, isActive: boolean) => {
+  // 检查登录状态
+  if (!requireAuth('请先登录后再点赞', router)) {
+    // 如果未登录，回滚状态
+    post.isLiked = !isActive
+    post.likes = isActive ? Math.max(0, (post.likes || 0) - 1) : (post.likes || 0) + 1
+    return
+  }
+
   try {
     if (isActive) {
       await likePost(post.id)
@@ -254,8 +265,11 @@ const handleLikeToggle = async (post: CommunityPost, isActive: boolean) => {
       post.likes = Math.max(0, (post.likes || 0) - 1)
       post.isLiked = false
     }
-  } catch (error) {
-    ElMessage.error('操作失败')
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error.message || '操作失败'
+    if (error.response?.status !== 401) {
+      ElMessage.error(errorMessage)
+    }
     // 回滚状态
     post.isLiked = !isActive
     post.likes = isActive ? Math.max(0, (post.likes || 0) - 1) : (post.likes || 0) + 1
@@ -327,6 +341,14 @@ const removeImage = (index: number) => {
   createForm.value.images.splice(index, 1)
 }
 
+const handleCreatePostClick = () => {
+  // 检查登录状态
+  if (!requireAuth('请先登录后再发布帖子', router)) {
+    return
+  }
+  showCreateDialog.value = true
+}
+
 const handleCreate = async () => {
   if (!createForm.value.title.trim()) {
     ElMessage.warning('请输入标题')
@@ -334,6 +356,11 @@ const handleCreate = async () => {
   }
   if (!createForm.value.content.trim()) {
     ElMessage.warning('请输入内容')
+    return
+  }
+
+  // 再次检查登录状态（防止在填写表单期间登录状态失效）
+  if (!requireAuth('请先登录后再发布帖子', router)) {
     return
   }
 
@@ -351,9 +378,14 @@ const handleCreate = async () => {
     imageUrlInput.value = ''
     imageUploadTab.value = 'upload'
     loadPosts()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to create post:', error)
-    ElMessage.error('发布失败')
+    // 如果是401错误，说明未登录，已经在axios拦截器中处理
+    // 其他错误显示具体错误信息
+    const errorMessage = error.response?.data?.message || error.message || '发布失败'
+    if (error.response?.status !== 401) {
+      ElMessage.error(errorMessage)
+    }
   }
 }
 

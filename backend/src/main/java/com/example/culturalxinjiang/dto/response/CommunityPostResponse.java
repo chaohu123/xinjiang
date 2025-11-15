@@ -23,6 +23,7 @@ public class CommunityPostResponse {
     private Integer comments;
     private Integer views;
     private String status;
+    private String rejectReason;
     private Boolean isLiked;
     private Boolean isFavorited;
     private LocalDateTime createdAt;

@@ -15,6 +15,7 @@ export interface CommunityPost {
   isLiked?: boolean
   isFavorited?: boolean
   status?: 'pending' | 'approved' | 'rejected'
+  rejectReason?: string
   createdAt: string
   updatedAt: string
 }

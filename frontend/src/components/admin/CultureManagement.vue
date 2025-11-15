@@ -101,7 +101,111 @@
           <el-input v-model="form.description" type="textarea" :rows="3" />
         </el-form-item>
         <el-form-item label="封面">
-          <el-input v-model="form.cover" placeholder="封面图片URL" />
+          <div style="display: flex; gap: 10px; align-items: flex-start">
+            <el-radio-group v-model="coverUploadType" style="margin-right: 10px">
+              <el-radio-button label="url">URL链接</el-radio-button>
+              <el-radio-button label="upload">本地上传</el-radio-button>
+            </el-radio-group>
+            <el-input
+              v-if="coverUploadType === 'url'"
+              v-model="form.cover"
+              placeholder="封面图片URL"
+              style="flex: 1"
+            />
+            <el-upload
+              v-else
+              :action="''"
+              :auto-upload="false"
+              :on-change="handleCoverFileChange"
+              :show-file-list="false"
+              accept="image/*"
+            >
+              <el-button type="primary">选择图片</el-button>
+            </el-upload>
+          </div>
+          <el-image
+            v-if="form.cover"
+            :src="form.cover"
+            fit="cover"
+            style="width: 200px; height: 120px; margin-top: 10px"
+          />
+        </el-form-item>
+        <el-form-item label="图片列表">
+          <div style="margin-bottom: 10px">
+            <el-radio-group v-model="imageUploadType" style="margin-right: 10px">
+              <el-radio-button label="url">URL链接</el-radio-button>
+              <el-radio-button label="upload">本地上传</el-radio-button>
+            </el-radio-group>
+            <el-input
+              v-if="imageUploadType === 'url'"
+              v-model="newImageUrl"
+              placeholder="输入图片URL"
+              style="width: 300px; margin-right: 10px"
+              @keyup.enter="addImageUrl"
+            >
+              <template #append>
+                <el-button @click="addImageUrl">添加</el-button>
+              </template>
+            </el-input>
+            <el-upload
+              v-else
+              :action="''"
+              :auto-upload="false"
+              :on-change="handleImageFileChange"
+              :show-file-list="false"
+              accept="image/*"
+            >
+              <el-button type="primary">选择图片</el-button>
+            </el-upload>
+          </div>
+          <div v-if="form.images && form.images.length > 0" class="image-list">
+            <div
+              v-for="(image, index) in form.images"
+              :key="index"
+              class="image-item"
+            >
+              <el-image :src="image" fit="cover" style="width: 100px; height: 100px" />
+              <el-button
+                type="danger"
+                size="small"
+                circle
+                style="position: absolute; top: -5px; right: -5px"
+                @click="removeImage(index)"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="视频">
+          <div style="display: flex; gap: 10px; align-items: flex-start">
+            <el-radio-group v-model="videoUploadType" style="margin-right: 10px">
+              <el-radio-button label="url">URL链接</el-radio-button>
+              <el-radio-button label="upload">本地上传</el-radio-button>
+            </el-radio-group>
+            <el-input
+              v-if="videoUploadType === 'url'"
+              v-model="form.videoUrl"
+              placeholder="视频URL"
+              style="flex: 1"
+            />
+            <el-upload
+              v-else
+              :action="''"
+              :auto-upload="false"
+              :on-change="handleVideoFileChange"
+              :show-file-list="false"
+              accept="video/*"
+            >
+              <el-button type="primary">选择视频</el-button>
+            </el-upload>
+          </div>
+          <video
+            v-if="form.videoUrl"
+            :src="form.videoUrl"
+            controls
+            style="width: 100%; max-width: 500px; margin-top: 10px"
+          />
         </el-form-item>
         <el-form-item label="地区" required>
           <el-input v-model="form.region" />
@@ -126,10 +230,12 @@ import {
   createCultureResource,
   updateCultureResource,
   deleteCultureResource,
+  uploadCultureMedia,
 } from '@/api/admin'
 import type { CultureResource, CultureType } from '@/types/culture'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, Close } from '@element-plus/icons-vue'
+import type { UploadFile } from 'element-plus'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -147,9 +253,17 @@ const form = ref({
   title: '',
   description: '',
   cover: '',
+  images: [] as string[],
+  videoUrl: '',
   region: '',
   content: '',
 })
+
+const coverUploadType = ref<'url' | 'upload'>('url')
+const imageUploadType = ref<'url' | 'upload'>('url')
+const videoUploadType = ref<'url' | 'upload'>('url')
+const newImageUrl = ref('')
+const uploading = ref(false)
 
 const getTypeLabel = (type: CultureType) => {
   const labels: Record<CultureType, string> = {
@@ -199,9 +313,15 @@ const handleAdd = () => {
     title: '',
     description: '',
     cover: '',
+    images: [],
+    videoUrl: '',
     region: '',
     content: '',
   }
+  coverUploadType.value = 'url'
+  imageUploadType.value = 'url'
+  videoUploadType.value = 'url'
+  newImageUrl.value = ''
   dialogVisible.value = true
 }
 
@@ -212,9 +332,15 @@ const handleEdit = (resource: CultureResource) => {
     title: resource.title,
     description: resource.description || '',
     cover: resource.cover || '',
+    images: resource.images || [],
+    videoUrl: resource.videoUrl || '',
     region: resource.region,
     content: resource.content || '',
   }
+  coverUploadType.value = resource.cover ? (resource.cover.startsWith('http') ? 'url' : 'upload') : 'url'
+  imageUploadType.value = 'url'
+  videoUploadType.value = resource.videoUrl ? (resource.videoUrl.startsWith('http') ? 'url' : 'upload') : 'url'
+  newImageUrl.value = ''
   dialogVisible.value = true
 }
 
@@ -266,6 +392,78 @@ const handleDelete = async (resource: CultureResource) => {
   }
 }
 
+// 处理封面上传
+const handleCoverFileChange = async (file: UploadFile) => {
+  if (!file.raw) return
+  uploading.value = true
+  try {
+    const response = await uploadCultureMedia(file.raw)
+    form.value.cover = response.url
+    ElMessage.success('封面上传成功')
+  } catch (error) {
+    console.error('Failed to upload cover:', error)
+    ElMessage.error('封面上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+// 处理图片上传
+const handleImageFileChange = async (file: UploadFile) => {
+  if (!file.raw) return
+  uploading.value = true
+  try {
+    const response = await uploadCultureMedia(file.raw)
+    if (!form.value.images) {
+      form.value.images = []
+    }
+    form.value.images.push(response.url)
+    ElMessage.success('图片上传成功')
+  } catch (error) {
+    console.error('Failed to upload image:', error)
+    ElMessage.error('图片上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+// 添加图片URL
+const addImageUrl = () => {
+  if (!newImageUrl.value.trim()) {
+    ElMessage.warning('请输入图片URL')
+    return
+  }
+  if (!form.value.images) {
+    form.value.images = []
+  }
+  form.value.images.push(newImageUrl.value.trim())
+  newImageUrl.value = ''
+  ElMessage.success('图片添加成功')
+}
+
+// 移除图片
+const removeImage = (index: number) => {
+  if (form.value.images) {
+    form.value.images.splice(index, 1)
+  }
+}
+
+// 处理视频上传
+const handleVideoFileChange = async (file: UploadFile) => {
+  if (!file.raw) return
+  uploading.value = true
+  try {
+    const response = await uploadCultureMedia(file.raw)
+    form.value.videoUrl = response.url
+    ElMessage.success('视频上传成功')
+  } catch (error) {
+    console.error('Failed to upload video:', error)
+    ElMessage.error('视频上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
 onMounted(() => {
   loadResources()
 })
@@ -282,5 +480,19 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.image-item {
+  position: relative;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 5px;
 }
 </style>

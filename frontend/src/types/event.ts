@@ -6,12 +6,12 @@ export interface Event {
   type: 'exhibition' | 'performance' | 'workshop' | 'tour'
   startDate: string
   endDate: string
-  location: {
+  location?: {
     name: string
     address: string
     lat?: number
     lng?: number
-  }
+  } | null
   capacity?: number
   registered: number
   price?: number
@@ -19,14 +19,15 @@ export interface Event {
   createdAt: string
   images?: string[]
   videos?: string[]
+  isRegistered?: boolean // 当前用户是否已报名
 }
 
 export interface EventDetail extends Event {
   content: string
-  organizer: {
+  organizer?: {
     name: string
     contact: string
-  }
+  } | null
   schedule?: {
     time: string
     activity: string

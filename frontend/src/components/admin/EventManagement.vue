@@ -242,6 +242,45 @@
             <el-option label="已结束" value="past" />
           </el-select>
         </el-form-item>
+        <el-form-item label="活动安排">
+          <div class="schedule-editor">
+            <div
+              v-for="(item, index) in form.schedule"
+              :key="index"
+              class="schedule-item"
+            >
+              <el-time-picker
+                v-model="item.time"
+                format="HH:mm"
+                value-format="HH:mm"
+                placeholder="选择时间"
+                style="width: 150px; margin-right: 12px"
+              />
+              <el-input
+                v-model="item.activity"
+                placeholder="输入活动内容"
+                style="flex: 1; margin-right: 12px"
+              />
+              <el-button
+                link
+                type="danger"
+                :icon="Delete"
+                @click="removeScheduleItem(index)"
+              >
+                删除
+              </el-button>
+            </div>
+            <el-button
+              type="primary"
+              link
+              :icon="Plus"
+              @click="addScheduleItem"
+              style="margin-top: 8px"
+            >
+              添加活动安排
+            </el-button>
+          </div>
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -321,9 +360,10 @@ import {
   approveEventRegistration,
   rejectEventRegistration,
 } from '@/api/admin'
+import { getEventDetail } from '@/api/event'
 import type { Event } from '@/types/event'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, Delete } from '@element-plus/icons-vue'
 import { formatDate } from '@/utils'
 import { useUserStore } from '@/store/user'
 
@@ -372,6 +412,7 @@ const form = ref({
   status: 'upcoming',
   images: [] as string[],
   videos: [] as string[],
+  schedule: [] as { time: string; activity: string }[],
 })
 
 const uploadAction = computed(() => '/api/admin/events/upload')
@@ -612,6 +653,14 @@ const loadEvents = async () => {
   }
 }
 
+const addScheduleItem = () => {
+  form.value.schedule.push({ time: '', activity: '' })
+}
+
+const removeScheduleItem = (index: number) => {
+  form.value.schedule.splice(index, 1)
+}
+
 const handleAdd = () => {
   editingItem.value = null
   form.value = {
@@ -626,26 +675,56 @@ const handleAdd = () => {
     status: 'upcoming',
     images: [],
     videos: [],
+    schedule: [],
   }
   dialogVisible.value = true
 }
 
-const handleEdit = (event: Event) => {
+const handleEdit = async (event: Event) => {
   editingItem.value = event
-  form.value = {
-    title: event.title,
-    type: normalizeKey(event.type),
-    description: event.description || '',
-    cover: event.cover || '',
-    startDate: event.startDate,
-    endDate: event.endDate,
-    capacity: event.capacity || 0,
-    price: event.price || 0,
-    status: normalizeKey(event.status),
-    images: Array.isArray(event.images) ? [...event.images] : [],
-    videos: Array.isArray(event.videos) ? [...event.videos] : [],
-  }
   dialogVisible.value = true
+
+  // Fetch full event detail to get schedule and other detail fields
+  try {
+    const eventDetail = await getEventDetail(event.id)
+    form.value = {
+      title: eventDetail.title,
+      type: normalizeKey(eventDetail.type),
+      description: eventDetail.description || '',
+      cover: eventDetail.cover || '',
+      startDate: eventDetail.startDate,
+      endDate: eventDetail.endDate,
+      capacity: eventDetail.capacity || 0,
+      price: eventDetail.price || 0,
+      status: normalizeKey(eventDetail.status),
+      images: Array.isArray(eventDetail.images) ? [...eventDetail.images] : [],
+      videos: Array.isArray(eventDetail.videos) ? [...eventDetail.videos] : [],
+      schedule: Array.isArray(eventDetail.schedule)
+        ? eventDetail.schedule.map((item) => ({
+            time: item.time || '',
+            activity: item.activity || '',
+          }))
+        : [],
+    }
+  } catch (error) {
+    console.error('Failed to load event detail:', error)
+    // Fallback to basic event data if detail fetch fails
+    form.value = {
+      title: event.title,
+      type: normalizeKey(event.type),
+      description: event.description || '',
+      cover: event.cover || '',
+      startDate: event.startDate,
+      endDate: event.endDate,
+      capacity: event.capacity || 0,
+      price: event.price || 0,
+      status: normalizeKey(event.status),
+      images: Array.isArray(event.images) ? [...event.images] : [],
+      videos: Array.isArray(event.videos) ? [...event.videos] : [],
+      schedule: [],
+    }
+    ElMessage.warning('加载活动详情失败，部分信息可能不完整')
+  }
 }
 
 const handleSubmit = async () => {
@@ -656,11 +735,16 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
+    // Filter out empty schedule items
+    const validSchedule = form.value.schedule.filter(
+      item => item.time && item.activity && item.time.trim() && item.activity.trim()
+    )
     const payload = {
       ...form.value,
       cover: form.value.cover?.trim() || '',
       images: [...form.value.images],
       videos: [...form.value.videos],
+      schedule: validSchedule,
     }
     if (editingItem.value) {
       await updateEvent(editingItem.value.id, payload)
@@ -852,5 +936,18 @@ onMounted(() => {
 
 .remove-btn {
   padding: 0;
+}
+
+.schedule-editor {
+  width: 100%;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
 }
 </style>

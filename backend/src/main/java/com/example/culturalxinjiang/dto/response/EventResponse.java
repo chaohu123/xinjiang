@@ -30,6 +30,7 @@ public class EventResponse {
     private LocalDateTime createdAt;
     private List<String> images;
     private List<String> videos;
+    private Boolean isRegistered; // 当前用户是否已报名
 
     @Data
     @NoArgsConstructor

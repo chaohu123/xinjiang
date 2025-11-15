@@ -50,6 +50,12 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="拒绝原因" min-width="200">
+          <template #default="{ row }">
+            <span v-if="row.rejectReason" style="color: #f56c6c">{{ row.rejectReason }}</span>
+            <span v-else style="color: #909399">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="发布时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
@@ -102,6 +108,16 @@
           <span>点赞：{{ currentPost.likes }}</span>
           <span>评论：{{ currentPost.comments }}</span>
           <span>浏览：{{ currentPost.views }}</span>
+          <span>
+            状态：
+            <el-tag :type="getStatusType(currentPost.status || 'pending')" size="small">
+              {{ getStatusLabel(currentPost.status || 'pending') }}
+            </el-tag>
+          </span>
+        </div>
+        <div v-if="currentPost.rejectReason" class="reject-reason" style="margin-top: 16px; padding: 12px; background: #fef0f0; border-radius: 4px; border-left: 4px solid #f56c6c">
+          <strong style="color: #f56c6c">拒绝原因：</strong>
+          <span style="color: #606266">{{ currentPost.rejectReason }}</span>
         </div>
         <div class="post-content">
           {{ currentPost.content }}
@@ -121,8 +137,15 @@
     <!-- 拒绝原因对话框 -->
     <el-dialog v-model="rejectVisible" title="拒绝投稿" width="500px">
       <el-form :model="rejectForm" label-width="100px">
-        <el-form-item label="拒绝原因">
-          <el-input v-model="rejectForm.reason" type="textarea" :rows="4" />
+        <el-form-item label="拒绝原因" :rules="[{ required: true, message: '请输入拒绝原因', trigger: 'blur' }]">
+          <el-input
+            v-model="rejectForm.reason"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入拒绝原因，以便用户了解投稿未通过审核的原因"
+            maxlength="500"
+            show-word-limit
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -230,10 +253,16 @@ const handleReject = (post: CommunityPost) => {
 const handleRejectConfirm = async () => {
   if (!rejectingPostId.value) return
 
+  if (!rejectForm.value.reason || !rejectForm.value.reason.trim()) {
+    ElMessage.warning('请输入拒绝原因')
+    return
+  }
+
   try {
-    await rejectPost(rejectingPostId.value, rejectForm.value.reason)
+    await rejectPost(rejectingPostId.value, rejectForm.value.reason.trim())
     ElMessage.success('已拒绝')
     rejectVisible.value = false
+    rejectForm.value.reason = ''
     loadPosts()
   } catch (error) {
     console.error('Failed to reject post:', error)

@@ -26,3 +26,11 @@ export const registerEvent = (id: number) => {
 export const cancelEventRegistration = (id: number) => {
   return request.delete(`/events/${id}/register`)
 }
+
+// 获取我的已报名活动
+export const getMyRegisteredEvents = (params?: {
+  page?: number
+  size?: number
+}) => {
+  return request.get<{ list: Event[]; total: number }>('/events/my-registrations', { params })
+}

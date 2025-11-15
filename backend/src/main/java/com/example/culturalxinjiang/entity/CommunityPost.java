@@ -64,6 +64,9 @@ public class CommunityPost {
     @Builder.Default
     private String status = "pending";
 
+    @Column(columnDefinition = "TEXT")
+    private String rejectReason;
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Comment> commentList = new ArrayList<>();
@@ -80,6 +83,8 @@ public class CommunityPost {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 }
+
+
 
 
 

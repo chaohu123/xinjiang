@@ -4,11 +4,14 @@ import com.example.culturalxinjiang.dto.response.CultureResourceResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.dto.response.UserInfoResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
+import com.example.culturalxinjiang.dto.response.EventResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.entity.CommunityPost;
+import com.example.culturalxinjiang.entity.Event;
 import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.CultureResourceRepository;
 import com.example.culturalxinjiang.repository.CommunityPostRepository;
+import com.example.culturalxinjiang.repository.EventRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,6 +31,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final CultureResourceRepository cultureResourceRepository;
     private final CommunityPostRepository communityPostRepository;
+    private final EventRepository eventRepository;
 
     // ==================== 用户管理 ====================
 
@@ -223,6 +227,7 @@ public class AdminService {
         String trimmedStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
 
         // 根据参数情况选择不同的查询方法
+        // 管理员审核页面应该显示所有状态的投稿，所以使用专门的查询方法
         if (trimmedStatus != null && trimmedKeyword != null) {
             // 同时有状态和关键字，使用组合查询
             postPage = communityPostRepository.findByStatusAndKeyword(trimmedStatus, trimmedKeyword, pageable);
@@ -230,12 +235,11 @@ public class AdminService {
             // 只有状态
             postPage = communityPostRepository.findByStatus(trimmedStatus, pageable);
         } else if (trimmedKeyword != null) {
-            // 只有关键字
-            postPage = communityPostRepository.findByTitleContainingOrContentContaining(
-                    trimmedKeyword, trimmedKeyword, pageable);
+            // 只有关键字，查询所有状态的投稿
+            postPage = communityPostRepository.findByKeywordForAdmin(trimmedKeyword, pageable);
         } else {
-            // 都没有，查询所有
-            postPage = communityPostRepository.findAllOrderByCreatedAtDesc(pageable);
+            // 都没有，查询所有状态的投稿
+            postPage = communityPostRepository.findAllForAdmin(pageable);
         }
 
         List<CommunityPostResponse> responses = postPage.getContent().stream()
@@ -258,6 +262,7 @@ public class AdminService {
         CommunityPost post = communityPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("帖子不存在"));
         post.setStatus("rejected");
+        post.setRejectReason(reason);
         communityPostRepository.save(post);
     }
 
@@ -341,10 +346,122 @@ public class AdminService {
                 .comments(post.getComments())
                 .views(post.getViews())
                 .status(post.getStatus() != null ? post.getStatus() : "pending")
+                .rejectReason(post.getRejectReason())
                 .isLiked(false) // 管理员查看时不需要点赞状态
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();
+    }
+
+    // ==================== 仪表板数据 ====================
+
+    @Transactional(readOnly = true)
+    public DashboardStatsResponse getDashboardStats() {
+        long userCount = userRepository.count();
+        long cultureCount = cultureResourceRepository.count();
+        long eventCount = eventRepository.count();
+        long postCount = communityPostRepository.count();
+
+        return new DashboardStatsResponse(userCount, cultureCount, eventCount, postCount);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityPostResponse> getPendingPosts(Integer limit) {
+        Pageable pageable = PageRequest.of(0, limit != null ? limit : 10);
+        Page<CommunityPost> postPage = communityPostRepository.findByStatus("pending", pageable);
+
+        return postPage.getContent().stream()
+                .map(this::mapToCommunityPostResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventResponse> getOngoingEvents(Integer limit) {
+        // 先更新活动状态
+        updateEventStatuses();
+
+        List<Event> events = eventRepository.findByStatus(Event.EventStatus.ONGOING);
+        int size = limit != null ? Math.min(limit, events.size()) : events.size();
+
+        return events.stream()
+                .limit(size)
+                .map(this::mapToEventResponse)
+                .collect(Collectors.toList());
+    }
+
+    private EventResponse mapToEventResponse(Event event) {
+        List<String> images = event.getImages() != null ? new ArrayList<>(event.getImages()) : new ArrayList<>();
+        List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
+
+        EventResponse.EventLocation location = null;
+        if (event.getLocation() != null) {
+            location = new EventResponse.EventLocation(
+                    event.getLocation().getName(),
+                    event.getLocation().getAddress(),
+                    event.getLocation().getLat(),
+                    event.getLocation().getLng()
+            );
+        }
+
+        return EventResponse.builder()
+                .id(event.getId())
+                .title(event.getTitle())
+                .description(event.getDescription())
+                .cover(event.getCover())
+                .type(event.getType())
+                .startDate(event.getStartDate())
+                .endDate(event.getEndDate())
+                .location(location)
+                .capacity(event.getCapacity())
+                .registered(event.getRegistered())
+                .price(event.getPrice())
+                .status(event.getStatus())
+                .createdAt(event.getCreatedAt())
+                .images(images)
+                .videos(videos)
+                .isRegistered(false) // 仪表板不需要用户报名状态
+                .build();
+    }
+
+    /**
+     * 更新活动状态
+     */
+    @Transactional
+    public void updateEventStatuses() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        List<Event> events = eventRepository.findAll();
+
+        for (Event event : events) {
+            Event.EventStatus calculatedStatus = calculateEventStatus(event, today);
+            if (event.getStatus() != calculatedStatus) {
+                event.setStatus(calculatedStatus);
+                eventRepository.save(event);
+            }
+        }
+    }
+
+    private Event.EventStatus calculateEventStatus(Event event, java.time.LocalDate today) {
+        java.time.LocalDate startDate = event.getStartDate();
+        java.time.LocalDate endDate = event.getEndDate();
+
+        if (endDate.isBefore(today)) {
+            return Event.EventStatus.PAST;
+        }
+        if (startDate.isAfter(today)) {
+            return Event.EventStatus.UPCOMING;
+        }
+        return Event.EventStatus.ONGOING;
+    }
+
+    // ==================== 内部响应类 ====================
+
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class DashboardStatsResponse {
+        private long users;
+        private long culture;
+        private long events;
+        private long posts;
     }
 }
 

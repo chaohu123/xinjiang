@@ -3,7 +3,7 @@
     <div class="container">
       <el-tabs v-model="activeTab" class="profile-tabs">
         <el-tab-pane :label="$t('profile.basicInfo')" name="info">
-          <el-card>
+          <el-card class="info-card">
             <el-form :model="userInfo" label-width="100px" style="max-width: 600px">
               <el-form-item label="头像">
                 <el-upload
@@ -120,6 +120,23 @@
                   </el-button>
                 </div>
               </div>
+              <div class="post-status-section">
+                <el-tag
+                  :type="getPostStatusType(post.status || 'pending')"
+                  size="small"
+                  style="margin-bottom: 12px"
+                >
+                  {{ getPostStatusLabel(post.status || 'pending') }}
+                </el-tag>
+                <el-alert
+                  v-if="post.status === 'rejected' && post.rejectReason"
+                  :title="`拒绝原因：${post.rejectReason}`"
+                  type="error"
+                  :closable="false"
+                  show-icon
+                  style="margin-bottom: 12px"
+                />
+              </div>
               <h3 class="post-title" @click="$router.push(`/community/post/${post.id}`)">{{ post.title }}</h3>
               <p class="post-content" @click="$router.push(`/community/post/${post.id}`)">{{ post.content }}</p>
               <div v-if="post.images && post.images.length > 0" class="post-images" @click.stop>
@@ -234,8 +251,69 @@
           </el-tabs>
         </el-tab-pane>
 
+        <el-tab-pane label="我的活动" name="events">
+          <div v-loading="registeredEventsLoading" class="events-list">
+            <el-card
+              v-for="event in registeredEvents"
+              :key="event.id"
+              class="event-card"
+              @click="$router.push(`/event/${event.id}`)"
+            >
+              <div class="event-content">
+                <el-image :src="event.cover" fit="cover" class="event-image" />
+                <div class="event-info">
+                  <div class="event-header">
+                    <h3>{{ event.title }}</h3>
+                    <el-tag :type="getEventStatusType(event.status)">
+                      {{ getEventStatusText(event.status) }}
+                    </el-tag>
+                  </div>
+                  <p class="event-description">{{ event.description }}</p>
+                  <div class="event-meta">
+                    <span v-if="event.startDate">
+                      <el-icon><Calendar /></el-icon>
+                      {{ formatDate(event.startDate, 'YYYY-MM-DD') }}
+                      <template v-if="event.endDate">
+                        ~ {{ formatDate(event.endDate, 'YYYY-MM-DD') }}
+                      </template>
+                    </span>
+                    <span v-if="event.location?.name">
+                      <el-icon><Location /></el-icon>
+                      {{ event.location.name }}
+                    </span>
+                    <span v-if="event.capacity">
+                      <el-icon><User /></el-icon>
+                      {{ event.registered || 0 }}/{{ event.capacity }}
+                    </span>
+                  </div>
+                  <div class="event-actions">
+                    <el-button
+                      type="danger"
+                      size="small"
+                      @click.stop="handleCancelRegistration(event.id)"
+                    >
+                      取消报名
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      size="small"
+                      @click.stop="$router.push(`/event/${event.id}`)"
+                    >
+                      查看详情
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </el-card>
+          </div>
+          <EmptyState
+            v-if="!registeredEventsLoading && registeredEvents.length === 0"
+            :text="$t('common.noData')"
+          />
+        </el-tab-pane>
+
         <el-tab-pane :label="$t('profile.settings')" name="settings">
-          <el-card>
+          <el-card class="settings-card">
             <h3>{{ $t('profile.changePassword') }}</h3>
             <el-form :model="passwordForm" label-width="120px" style="max-width: 500px">
               <el-form-item label="当前密码">
@@ -368,13 +446,15 @@ import {
   uploadImage,
 } from '@/api/community'
 import { changePassword } from '@/api/user'
+import { getMyRegisteredEvents, cancelEventRegistration } from '@/api/event'
 import type { CultureResource } from '@/types/culture'
 import type { CommunityPost } from '@/types/community'
+import type { Event } from '@/types/event'
 import type { UploadFile, UploadFiles } from 'element-plus'
 import CultureCard from '@/components/common/CultureCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { fromNow } from '@/utils'
-import { Star, ChatLineRound, View, Edit, Delete, Plus, Close } from '@element-plus/icons-vue'
+import { fromNow, formatDate } from '@/utils'
+import { Star, ChatLineRound, View, Edit, Delete, Plus, Close, Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const userStore = useUserStore()
@@ -391,6 +471,8 @@ const likedPosts = ref<CommunityPost[]>([])
 const likedPostsLoading = ref(false)
 const commentedPosts = ref<CommunityPost[]>([])
 const commentedPostsLoading = ref(false)
+const registeredEvents = ref<Event[]>([])
+const registeredEventsLoading = ref(false)
 const passwordForm = ref({
   oldPassword: '',
   newPassword: '',
@@ -506,6 +588,97 @@ const loadCommentedPosts = async () => {
   }
 }
 
+const loadRegisteredEvents = async () => {
+  registeredEventsLoading.value = true
+  try {
+    const response = await getMyRegisteredEvents({ page: 1, size: 20 })
+    // 将后端返回的大写状态和类型转换为小写
+    registeredEvents.value = (response.list || []).map(event => ({
+      ...event,
+      status: event.status?.toLowerCase() as 'upcoming' | 'ongoing' | 'past',
+      type: event.type?.toLowerCase() as 'exhibition' | 'performance' | 'workshop' | 'tour',
+    }))
+  } catch (error) {
+    console.error('Failed to load registered events:', error)
+    registeredEvents.value = []
+  } finally {
+    registeredEventsLoading.value = false
+  }
+}
+
+const handleCancelRegistration = async (eventId: number) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要取消报名吗？此操作不可恢复。',
+      '取消报名确认',
+      {
+        confirmButtonText: '确定取消',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      }
+    )
+
+    try {
+      await cancelEventRegistration(eventId)
+      ElMessage.success('取消报名成功')
+      loadRegisteredEvents()
+    } catch (error) {
+      console.error('Failed to cancel registration:', error)
+      ElMessage.error('取消报名失败')
+    }
+  } catch (error) {
+    // 用户取消操作
+    if (error !== 'cancel') {
+      console.error('Cancel registration confirmation error:', error)
+    }
+  }
+}
+
+const getEventStatusType = (status?: string) => {
+  switch (status) {
+    case 'upcoming':
+      return 'info'
+    case 'ongoing':
+      return 'success'
+    case 'past':
+      return 'info'
+    default:
+      return ''
+  }
+}
+
+const getEventStatusText = (status?: string) => {
+  switch (status) {
+    case 'upcoming':
+      return '即将开始'
+    case 'ongoing':
+      return '进行中'
+    case 'past':
+      return '已结束'
+    default:
+      return ''
+  }
+}
+
+const getPostStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '已拒绝',
+  }
+  return labels[status] || status
+}
+
+const getPostStatusType = (status: string) => {
+  const types: Record<string, string> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+  }
+  return types[status] || ''
+}
+
 watch(activeTab, (newTab) => {
   if (newTab === 'favorites') {
     if (favoriteSubTab.value === 'culture') {
@@ -521,6 +694,8 @@ watch(activeTab, (newTab) => {
     } else {
       loadCommentedPosts()
     }
+  } else if (newTab === 'events') {
+    loadRegisteredEvents()
   }
 })
 
@@ -709,6 +884,8 @@ onMounted(() => {
     } else {
       loadCommentedPosts()
     }
+  } else if (activeTab.value === 'events') {
+    loadRegisteredEvents()
   }
 })
 </script>
@@ -717,32 +894,91 @@ onMounted(() => {
 .profile-page {
   padding: 40px 0;
   min-height: calc(100vh - 70px);
-  background: linear-gradient(to bottom, #f5f7fa 0%, #ffffff 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    pointer-events: none;
+  }
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .profile-tabs {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+
   :deep(.el-tabs__header) {
-    background: #fff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 0 20px;
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin: 0;
+    border-bottom: none;
+  }
+
+  :deep(.el-tabs__nav-wrap) {
+    &::after {
+      display: none;
+    }
+  }
+
+  :deep(.el-tabs__item) {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    padding: 20px 24px;
+    transition: all 0.3s;
+
+    &:hover {
+      color: #fff;
+    }
+
+    &.is-active {
+      color: #fff;
+      font-weight: 600;
+    }
+  }
+
+  :deep(.el-tabs__active-bar) {
+    background-color: #fff;
+    height: 3px;
   }
 
   :deep(.el-tabs__content) {
     padding: 30px 20px;
     background: #fff;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 
   :deep(.el-tab-pane) {
     min-height: 400px;
+  }
+}
+
+.info-card,
+.settings-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  :deep(.el-card__body) {
+    padding: 30px;
   }
 }
 
@@ -751,10 +987,13 @@ onMounted(() => {
     cursor: pointer;
     border-radius: 50%;
     overflow: hidden;
-    transition: transform 0.3s;
+    transition: all 0.3s;
+    border: 3px solid #e4e7ed;
 
     &:hover {
       transform: scale(1.05);
+      border-color: #409eff;
+      box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
     }
   }
 }
@@ -783,11 +1022,28 @@ onMounted(() => {
   border: 1px solid #e4e7ed;
   overflow: hidden;
   background: #fff;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+  }
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
     border-color: #409eff;
+
+    &::before {
+      transform: scaleX(1);
+    }
   }
 
   :deep(.el-card__body) {
@@ -955,5 +1211,99 @@ onMounted(() => {
 .tags-display {
   margin-top: 12px;
   min-height: 32px;
+}
+
+// 活动卡片样式
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.event-card {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  border: 1px solid #e4e7ed;
+  overflow: hidden;
+  background: #fff;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: #409eff;
+  }
+
+  :deep(.el-card__body) {
+    padding: 20px;
+  }
+}
+
+.event-content {
+  display: flex;
+  gap: 20px;
+}
+
+.event-image {
+  width: 250px;
+  height: 180px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.event-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #303133;
+    margin: 0;
+    flex: 1;
+    line-height: 1.4;
+  }
+}
+
+.event-description {
+  color: #606266;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.event-meta {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #909399;
+  flex-wrap: wrap;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.event-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
 }
 </style>

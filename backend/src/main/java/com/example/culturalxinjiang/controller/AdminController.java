@@ -9,7 +9,19 @@ import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.service.AdminService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin")
@@ -18,8 +30,14 @@ public class AdminController {
 
     private final AdminService adminService;
 
+    @Value("${file.upload-dir:uploads}")
+    private String uploadDir;
+
+    @Value("${server.servlet.context-path:/api}")
+    private String contextPath;
+
     // ==================== 用户管理 ====================
-    
+
     @GetMapping("/users")
     public ApiResponse<PageResponse<UserInfoResponse>> getUsers(
             @RequestParam(defaultValue = "1") Integer page,
@@ -115,6 +133,48 @@ public class AdminController {
         return ApiResponse.success(null);
     }
 
+    // 上传文化资源图片或视频
+    @PostMapping(value = "/culture/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<Map<String, String>> uploadMedia(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ApiResponse.error("文件不能为空");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.startsWith("image/") && !contentType.startsWith("video/"))) {
+            return ApiResponse.error("仅支持上传图片或视频文件");
+        }
+
+        try {
+            // 创建上传目录
+            Path uploadPath = Paths.get(uploadDir);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename != null && originalFilename.contains(".")
+                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                    : "";
+            String filename = UUID.randomUUID().toString() + extension;
+
+            // 保存文件
+            Path filePath = uploadPath.resolve(filename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            // 构建访问URL
+            String url = contextPath + "/uploads/" + filename;
+            Map<String, String> result = new HashMap<>();
+            result.put("url", url);
+            result.put("type", contentType);
+
+            return ApiResponse.success(result);
+        } catch (IOException e) {
+            return ApiResponse.error("文件上传失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 社区投稿管理 ====================
 
     @GetMapping("/posts")
@@ -147,6 +207,30 @@ public class AdminController {
     public ApiResponse<Void> deletePost(@PathVariable Long id) {
         adminService.deletePost(id);
         return ApiResponse.success(null);
+    }
+
+    // ==================== 仪表板数据 ====================
+
+    @GetMapping("/dashboard/stats")
+    public ApiResponse<AdminService.DashboardStatsResponse> getDashboardStats() {
+        AdminService.DashboardStatsResponse response = adminService.getDashboardStats();
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/dashboard/pending-posts")
+    public ApiResponse<java.util.List<CommunityPostResponse>> getPendingPosts(
+            @RequestParam(defaultValue = "10") Integer limit
+    ) {
+        java.util.List<CommunityPostResponse> response = adminService.getPendingPosts(limit);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/dashboard/ongoing-events")
+    public ApiResponse<java.util.List<com.example.culturalxinjiang.dto.response.EventResponse>> getOngoingEvents(
+            @RequestParam(defaultValue = "10") Integer limit
+    ) {
+        java.util.List<com.example.culturalxinjiang.dto.response.EventResponse> response = adminService.getOngoingEvents(limit);
+        return ApiResponse.success(response);
     }
 
     // ==================== 内部请求类 ====================

@@ -61,6 +61,21 @@ public class CommunityService {
         CommunityPost post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("帖子不存在"));
 
+        // 检查帖子状态：只有已审核通过的帖子才能被查看，除非是作者本人
+        boolean isAuthor = false;
+        try {
+            User currentUser = getCurrentUser();
+            // 如果是作者本人，可以查看
+            isAuthor = post.getAuthor().getId().equals(currentUser.getId());
+        } catch (Exception e) {
+            // 用户未登录，继续检查
+        }
+
+        // 如果不是作者，只能查看已审核通过的帖子
+        if (!isAuthor && !"approved".equals(post.getStatus())) {
+            throw new RuntimeException("帖子不存在或未通过审核");
+        }
+
         // Increment views
         post.setViews(post.getViews() + 1);
         postRepository.save(post);
@@ -105,6 +120,12 @@ public class CommunityService {
         }
         if (request.getTags() != null) {
             post.setTags(new ArrayList<>(request.getTags()));
+        }
+
+        // 如果投稿被拒绝，编辑后重新提交（状态改回pending）
+        if ("rejected".equals(post.getStatus())) {
+            post.setStatus("pending");
+            post.setRejectReason(null); // 清空拒绝原因
         }
 
         post = postRepository.save(post);
@@ -221,6 +242,8 @@ public class CommunityService {
                 .likes(post.getLikes())
                 .comments(post.getComments())
                 .views(post.getViews())
+                .status(post.getStatus() != null ? post.getStatus() : "pending")
+                .rejectReason(post.getRejectReason())
                 .isLiked(isLiked)
                 .isFavorited(isFavorited)
                 .createdAt(post.getCreatedAt())
@@ -263,6 +286,8 @@ public class CommunityService {
         }
         response.setIsLiked(isLiked);
         response.setIsFavorited(isFavorited);
+        response.setStatus(post.getStatus() != null ? post.getStatus() : "pending");
+        response.setRejectReason(post.getRejectReason());
 
         response.setCreatedAt(post.getCreatedAt());
         response.setUpdatedAt(post.getUpdatedAt());

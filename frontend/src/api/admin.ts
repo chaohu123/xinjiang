@@ -65,6 +65,17 @@ export const deleteCultureResource = (id: number) => {
   return request.delete(`/admin/culture/${id}`)
 }
 
+// 上传文化资源图片或视频
+export const uploadCultureMedia = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post<{ url: string; type: string }>('/admin/culture/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
 // ==================== 活动管理 ====================
 export interface EventListResponse {
   list: Event[]
@@ -149,4 +160,32 @@ export const rejectPost = (id: number, reason?: string) => {
 // 删除社区投稿
 export const deletePost = (id: number) => {
   return request.delete(`/admin/posts/${id}`)
+}
+
+// ==================== 仪表板数据 ====================
+
+// 获取仪表板统计数据
+export interface DashboardStats {
+  users: number
+  culture: number
+  events: number
+  posts: number
+}
+
+export const getDashboardStats = () => {
+  return request.get<DashboardStats>('/admin/dashboard/stats')
+}
+
+// 获取待审核的社区投稿
+export const getPendingPosts = (limit?: number) => {
+  return request.get<CommunityPost[]>('/admin/dashboard/pending-posts', {
+    params: { limit },
+  })
+}
+
+// 获取正在进行的活动
+export const getOngoingEvents = (limit?: number) => {
+  return request.get<Event[]>('/admin/dashboard/ongoing-events', {
+    params: { limit },
+  })
 }
