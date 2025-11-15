@@ -108,9 +108,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getRecommendedResources, getHotResources } from '@/api/culture'
-import { getEvents } from '@/api/event'
+import { getLatestEvents } from '@/api/event'
 import { getCarousels } from '@/api/carousel'
-import type { CultureResource } from '@/types/culture'
+import type { CultureResource, HomeResource } from '@/types/culture'
 import type { Event } from '@/types/event'
 import type { CarouselItem } from '@/types/carousel'
 import CultureCard from '@/components/common/CultureCard.vue'
@@ -118,8 +118,8 @@ import Carousel from '@/components/common/Carousel.vue'
 import { formatDate } from '@/utils'
 import { ArrowRight, Calendar, Location } from '@element-plus/icons-vue'
 
-const featuredResources = ref<CultureResource[]>([])
-const hotResources = ref<CultureResource[]>([])
+const featuredResources = ref<HomeResource[]>([])
+const hotResources = ref<HomeResource[]>([])
 const latestEvents = ref<Event[]>([])
 const carouselItems = ref<CarouselItem[]>([])
 const featuredLoading = ref(false)
@@ -170,7 +170,7 @@ const loadData = async () => {
     const [featured, hot, events, carousels] = await Promise.all([
       getRecommendedResources(8).catch(() => []),
       getHotResources(8).catch(() => []),
-      getEvents({ page: 1, size: 4 }).catch(() => ({ list: [] as Event[], total: 0 })),
+      getLatestEvents({ page: 1, size: 4 }).catch(() => ({ list: [] as Event[], total: 0 })),
       getCarousels().catch(() => [] as CarouselItem[]),
     ])
 

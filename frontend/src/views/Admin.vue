@@ -28,6 +28,11 @@
         <el-tab-pane label="社区投稿审核" name="posts">
           <PostManagement />
         </el-tab-pane>
+
+        <!-- 首页推荐配置 -->
+        <el-tab-pane label="首页推荐配置" name="recommendations">
+          <HomeRecommendationManagement />
+        </el-tab-pane>
       </el-tabs>
     </div>
   </div>
@@ -43,6 +48,7 @@ import CarouselManagement from '@/components/admin/CarouselManagement.vue'
 import CultureManagement from '@/components/admin/CultureManagement.vue'
 import EventManagement from '@/components/admin/EventManagement.vue'
 import PostManagement from '@/components/admin/PostManagement.vue'
+import HomeRecommendationManagement from '@/components/admin/HomeRecommendationManagement.vue'
 
 const router = useRouter()
 const userStore = useUserStore()

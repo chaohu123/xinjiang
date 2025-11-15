@@ -7,7 +7,9 @@ import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.dto.response.UserInfoResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
+import com.example.culturalxinjiang.entity.HomeRecommendation;
 import com.example.culturalxinjiang.service.AdminService;
+import com.example.culturalxinjiang.service.HomeRecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -29,6 +31,7 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService adminService;
+    private final HomeRecommendationService homeRecommendationService;
 
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
@@ -233,6 +236,64 @@ public class AdminController {
         return ApiResponse.success(response);
     }
 
+    // ==================== 首页推荐配置管理 ====================
+
+    @GetMapping("/home-recommendations")
+    public ApiResponse<java.util.List<HomeRecommendation>> getHomeRecommendations(
+            @RequestParam(required = false) String type
+    ) {
+        HomeRecommendation.RecommendationType recType = null;
+        if (type != null && !type.trim().isEmpty()) {
+            try {
+                recType = HomeRecommendation.RecommendationType.valueOf(type.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // 忽略无效类型
+            }
+        }
+        java.util.List<HomeRecommendation> response = homeRecommendationService.getAllRecommendations(recType);
+        return ApiResponse.success(response);
+    }
+
+    @PostMapping("/home-recommendations")
+    public ApiResponse<HomeRecommendation> addHomeRecommendation(
+            @RequestBody AddRecommendationRequest request
+    ) {
+        HomeRecommendation.RecommendationType recType = HomeRecommendation.RecommendationType.valueOf(
+                request.type.toUpperCase());
+        HomeRecommendation.ResourceSource source = HomeRecommendation.ResourceSource.valueOf(
+                request.source.toUpperCase());
+        HomeRecommendation response = homeRecommendationService.addRecommendation(
+                recType, request.resourceId, source, request.displayOrder);
+        return ApiResponse.success(response);
+    }
+
+    @PutMapping("/home-recommendations/{id}")
+    public ApiResponse<HomeRecommendation> updateHomeRecommendation(
+            @PathVariable Long id,
+            @RequestBody UpdateRecommendationRequest request
+    ) {
+        HomeRecommendation response = homeRecommendationService.updateRecommendation(
+                id, request.displayOrder, request.enabled);
+        return ApiResponse.success(response);
+    }
+
+    @DeleteMapping("/home-recommendations/{id}")
+    public ApiResponse<Void> deleteHomeRecommendation(@PathVariable Long id) {
+        homeRecommendationService.deleteRecommendation(id);
+        return ApiResponse.success(null);
+    }
+
+    @GetMapping("/home-recommendations/current")
+    public ApiResponse<java.util.List<HomeRecommendationService.HomeResourceWithConfigInfo>> getCurrentDisplayedResources(
+            @RequestParam String type,
+            @RequestParam(defaultValue = "10") Integer limit
+    ) {
+        HomeRecommendation.RecommendationType recType = HomeRecommendation.RecommendationType.valueOf(type.toUpperCase());
+        java.util.List<HomeRecommendationService.HomeResourceWithConfigInfo> response =
+                homeRecommendationService.getCurrentDisplayedResources(recType, limit);
+        return ApiResponse.success(response);
+    }
+
     // ==================== 内部请求类 ====================
 
     @lombok.Data
@@ -259,6 +320,20 @@ public class AdminController {
     @lombok.Data
     public static class RejectPostRequest {
         private String reason;
+    }
+
+    @lombok.Data
+    public static class AddRecommendationRequest {
+        private String type; // "FEATURED" or "HOT"
+        private Long resourceId;
+        private String source; // "CULTURE_RESOURCE" or "COMMUNITY_POST"
+        private Integer displayOrder;
+    }
+
+    @lombok.Data
+    public static class UpdateRecommendationRequest {
+        private Integer displayOrder;
+        private Boolean enabled;
     }
 }
 

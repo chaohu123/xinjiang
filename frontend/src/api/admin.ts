@@ -1,6 +1,6 @@
 import request from '@/utils/axios'
 import type { UserInfo } from '@/types/user'
-import type { CultureResource, CultureType } from '@/types/culture'
+import type { CultureResource, CultureType, HomeResource } from '@/types/culture'
 import type { Event, EventDetail } from '@/types/event'
 import type { CommunityPost } from '@/types/community'
 
@@ -187,5 +187,65 @@ export const getPendingPosts = (limit?: number) => {
 export const getOngoingEvents = (limit?: number) => {
   return request.get<Event[]>('/admin/dashboard/ongoing-events', {
     params: { limit },
+  })
+}
+
+// ==================== 首页推荐配置管理 ====================
+export interface HomeRecommendation {
+  id: number
+  type: 'FEATURED' | 'HOT'
+  resourceId: number
+  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST'
+  displayOrder: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// 获取首页推荐配置列表
+export const getHomeRecommendations = (type?: 'FEATURED' | 'HOT') => {
+  return request.get<HomeRecommendation[]>('/admin/home-recommendations', {
+    params: type ? { type } : undefined,
+  })
+}
+
+// 添加首页推荐配置
+export const addHomeRecommendation = (data: {
+  type: 'FEATURED' | 'HOT'
+  resourceId: number
+  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST'
+  displayOrder?: number
+}) => {
+  return request.post<HomeRecommendation>('/admin/home-recommendations', data)
+}
+
+// 更新首页推荐配置
+export const updateHomeRecommendation = (
+  id: number,
+  data: { displayOrder?: number; enabled?: boolean }
+) => {
+  return request.put<HomeRecommendation>(`/admin/home-recommendations/${id}`, data)
+}
+
+// 删除首页推荐配置
+export const deleteHomeRecommendation = (id: number) => {
+  return request.delete(`/admin/home-recommendations/${id}`)
+}
+
+// 获取当前首页实际显示的资源
+export interface HomeResourceWithConfigInfo {
+  resource: HomeResource
+  configured: boolean
+  recommendationId?: number
+  displayOrder?: number
+  enabled?: boolean
+}
+
+export const getCurrentDisplayedResources = (
+  type: 'FEATURED' | 'HOT',
+  limit?: number
+) => {
+  return request.get<HomeResourceWithConfigInfo[]>('/admin/home-recommendations/current', {
+    params: { type, limit },
   })
 }

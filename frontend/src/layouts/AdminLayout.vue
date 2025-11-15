@@ -40,6 +40,10 @@
           <el-icon><ChatLineRound /></el-icon>
           <template #title> 社区投稿审核 </template>
         </el-menu-item>
+        <el-menu-item index="/admin/recommendations">
+          <el-icon><Star /></el-icon>
+          <template #title> 首页推荐配置 </template>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -101,6 +105,7 @@ import {
   Document,
   Calendar,
   ChatLineRound,
+  Star,
   ArrowDown,
   HomeFilled,
   SwitchButton,
@@ -122,6 +127,7 @@ const pageTitleMap: Record<string, string> = {
   '/admin/culture': '文化资源管理',
   '/admin/events': '活动管理',
   '/admin/posts': '社区投稿审核',
+  '/admin/recommendations': '首页推荐配置',
 }
 
 const currentPageTitle = computed(() => {

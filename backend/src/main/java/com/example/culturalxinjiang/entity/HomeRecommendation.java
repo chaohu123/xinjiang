@@ -12,40 +12,32 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users")
+@Table(name = "home_recommendations")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class User {
+public class HomeRecommendation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false, length = 50)
-    private String username;
-
-    @Column(unique = true, nullable = false)
-    private String email;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RecommendationType type;
 
     @Column(nullable = false)
-    private String password;
-
-    private String phone;
-
-    private String avatar;
-
-    private String nickname;
-
-    @Column(columnDefinition = "TEXT")
-    private String bio;
+    private Long resourceId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private ResourceSource source;
+
+    @Column(nullable = false)
     @Builder.Default
-    private Role role = Role.USER;
+    private Integer displayOrder = 0;
 
     @Column(nullable = false)
     @Builder.Default
@@ -59,24 +51,15 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public enum Role {
-        USER, ADMIN
+    public enum RecommendationType {
+        FEATURED,  // 精选推荐
+        HOT        // 热门资源
+    }
+
+    public enum ResourceSource {
+        CULTURE_RESOURCE,  // 文化资源
+        COMMUNITY_POST     // 社区投稿
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

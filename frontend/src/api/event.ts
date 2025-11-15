@@ -34,3 +34,11 @@ export const getMyRegisteredEvents = (params?: {
 }) => {
   return request.get<{ list: Event[]; total: number }>('/events/my-registrations', { params })
 }
+
+// 获取首页最新动态（一个月前后的活动）
+export const getLatestEvents = (params?: {
+  page?: number
+  size?: number
+}) => {
+  return request.get<{ list: Event[]; total: number }>('/events/latest', { params })
+}

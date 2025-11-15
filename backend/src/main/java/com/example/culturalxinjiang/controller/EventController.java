@@ -63,6 +63,15 @@ public class EventController {
         PageResponse<EventResponse> response = eventService.getMyRegisteredEvents(page, size);
         return ApiResponse.success(response);
     }
+
+    @GetMapping("/latest")
+    public ApiResponse<PageResponse<EventResponse>> getLatestEvents(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<EventResponse> response = eventService.getLatestEvents(page, size);
+        return ApiResponse.success(response);
+    }
 }
 
 

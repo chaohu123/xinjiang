@@ -2,11 +2,13 @@ package com.example.culturalxinjiang.controller;
 
 import com.example.culturalxinjiang.dto.response.ApiResponse;
 import com.example.culturalxinjiang.dto.response.CultureResourceResponse;
+import com.example.culturalxinjiang.dto.response.HomeResourceResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.entity.Favorite;
 import com.example.culturalxinjiang.service.CultureResourceService;
 import com.example.culturalxinjiang.service.FavoriteService;
+import com.example.culturalxinjiang.service.HomeRecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +21,7 @@ public class CultureController {
 
     private final CultureResourceService cultureResourceService;
     private final FavoriteService favoriteService;
+    private final HomeRecommendationService homeRecommendationService;
 
     @GetMapping("/search")
     public ApiResponse<PageResponse<CultureResourceResponse>> search(
@@ -45,18 +48,18 @@ public class CultureController {
     }
 
     @GetMapping("/hot")
-    public ApiResponse<List<CultureResourceResponse>> getHotResources(
+    public ApiResponse<List<HomeResourceResponse>> getHotResources(
             @RequestParam(defaultValue = "10") Integer limit
     ) {
-        List<CultureResourceResponse> response = cultureResourceService.getHotResources(limit);
+        List<HomeResourceResponse> response = homeRecommendationService.getHotResources(limit);
         return ApiResponse.success(response);
     }
 
     @GetMapping("/recommended")
-    public ApiResponse<List<CultureResourceResponse>> getRecommendedResources(
+    public ApiResponse<List<HomeResourceResponse>> getRecommendedResources(
             @RequestParam(defaultValue = "10") Integer limit
     ) {
-        List<CultureResourceResponse> response = cultureResourceService.getRecommendedResources(limit);
+        List<HomeResourceResponse> response = homeRecommendationService.getFeaturedResources(limit);
         return ApiResponse.success(response);
     }
 

@@ -10,8 +10,11 @@
           </template>
         </el-image>
         <div class="card-badge">
-          <el-tag :type="getTypeColor(resource.type)" size="small">
-            {{ getTypeName(resource.type) }}
+          <el-tag :type="getTypeColor((resource as any).type || (resource as any).resourceType)" size="small">
+            {{ getTypeName((resource as any).type || (resource as any).resourceType) }}
+          </el-tag>
+          <el-tag v-if="'source' in resource && resource.source === 'COMMUNITY_POST'" type="info" size="small" style="margin-left: 4px">
+            社区
           </el-tag>
         </div>
       </div>
@@ -52,18 +55,19 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import type { CultureResource } from '@/types/culture'
+import type { CultureResource, HomeResource } from '@/types/culture'
 import { Picture, Location, View, Star } from '@element-plus/icons-vue'
 
 interface Props {
-  resource: CultureResource
+  resource: CultureResource | HomeResource
 }
 
 const props = defineProps<Props>()
 const router = useRouter()
 const { t } = useI18n()
 
-const getTypeName = (type: string) => {
+const getTypeName = (type?: string) => {
+  if (!type) return '资源'
   // 将类型转换为小写以支持大小写不敏感的匹配
   const normalizedType = type?.toLowerCase() || ''
   const map: Record<string, string> = {
@@ -75,7 +79,8 @@ const getTypeName = (type: string) => {
   return map[normalizedType] || type
 }
 
-const getTypeColor = (type: string) => {
+const getTypeColor = (type?: string) => {
+  if (!type) return 'info'
   // 将类型转换为小写以支持大小写不敏感的匹配
   const normalizedType = type?.toLowerCase() || ''
   const map: Record<string, string> = {
@@ -90,7 +95,18 @@ const getTypeColor = (type: string) => {
 }
 
 const handleClick = () => {
-  router.push(`/detail/${props.resource.type}/${props.resource.id}`)
+  const resource = props.resource as any
+  // 如果是HomeResource，根据source跳转
+  if ('source' in resource) {
+    if (resource.source === 'CULTURE_RESOURCE') {
+      router.push(`/detail/${resource.resourceType?.toLowerCase() || 'article'}/${resource.id}`)
+    } else {
+      router.push(`/community/${resource.id}`)
+    }
+  } else {
+    // 传统的CultureResource
+    router.push(`/detail/${resource.type}/${resource.id}`)
+  }
 }
 </script>
 

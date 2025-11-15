@@ -120,6 +120,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/admin/AdminPosts.vue'),
         meta: { title: '社区投稿审核' },
       },
+      {
+        path: 'recommendations',
+        name: 'AdminRecommendations',
+        component: () => import('@/views/admin/AdminRecommendations.vue'),
+        meta: { title: '首页推荐配置' },
+      },
     ],
   },
   {

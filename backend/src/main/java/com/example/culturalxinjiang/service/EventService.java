@@ -325,5 +325,37 @@ public class EventService {
         // 否则活动进行中（今天在开始和结束日期之间）
         return Event.EventStatus.ONGOING;
     }
+
+    /**
+     * 获取首页最新动态：当前时间一个月前后的即将开始、进行中或已结束的活动
+     * @param page 页码
+     * @param size 每页大小
+     * @return 活动列表
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<EventResponse> getLatestEvents(Integer page, Integer size) {
+        // 先自动更新活动状态
+        updateEventStatuses();
+
+        LocalDate today = LocalDate.now();
+        LocalDate oneMonthAgo = today.minusMonths(1);
+        LocalDate oneMonthLater = today.plusMonths(1);
+
+        // 查询一个月前后且状态为即将开始、进行中或已结束的活动
+        List<Event.EventStatus> statuses = List.of(
+                Event.EventStatus.UPCOMING,
+                Event.EventStatus.ONGOING,
+                Event.EventStatus.PAST
+        );
+
+        Pageable pageable = PageRequest.of(page - 1, size);
+        Page<Event> eventPage = eventRepository.findRecentEvents(oneMonthAgo, oneMonthLater, statuses, pageable);
+
+        List<EventResponse> responses = eventPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(responses, eventPage.getTotalElements(), page, size);
+    }
 }
 
