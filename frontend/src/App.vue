@@ -39,30 +39,64 @@ onMounted(() => {
 <style lang="scss">
 #app {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #fafafa;
+  position: relative;
 }
 
-// 页面过渡动画
-.fade-enter-active,
+// 页面过渡动画 - 淡入淡出
+.fade-enter-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.fade-enter-from,
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
 .fade-leave-to {
   opacity: 0;
+  transform: translateY(-10px);
 }
 
-.slide-enter-active,
+// 滑动过渡动画
+.slide-enter-active {
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease;
+}
+
 .slide-leave-active {
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19), opacity 0.3s ease;
 }
 
 .slide-enter-from {
   transform: translateX(100%);
+  opacity: 0;
 }
 
 .slide-leave-to {
-  transform: translateX(-100%);
+  transform: translateX(-30%);
+  opacity: 0;
+}
+
+// 缩放淡入动画
+.scale-enter-active {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+}
+
+.scale-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.scale-enter-from {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+.scale-leave-to {
+  transform: scale(1.05);
+  opacity: 0;
 }
 </style>

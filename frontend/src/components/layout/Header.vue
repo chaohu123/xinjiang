@@ -8,13 +8,24 @@
         <span class="logo-text">{{ $t('app.name') }}</span>
       </div>
 
-      <nav class="nav-menu">
+      <!-- 移动端菜单按钮 -->
+      <el-button
+        v-if="isMobile"
+        class="mobile-menu-btn"
+        text
+        @click="mobileMenuVisible = !mobileMenuVisible"
+      >
+        <el-icon :size="24"><Menu /></el-icon>
+      </el-button>
+
+      <nav class="nav-menu" :class="{ 'mobile-menu': isMobile, 'mobile-menu-open': mobileMenuVisible }">
         <router-link
           v-for="item in menuItems"
           :key="item.path"
           :to="item.path"
           class="nav-item"
           active-class="active"
+          @click="isMobile && (mobileMenuVisible = false)"
         >
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
@@ -103,6 +114,7 @@ import {
   Route,
   Calendar,
   ChatLineRound,
+  Menu,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -111,8 +123,20 @@ const userStore = useUserStore()
 
 const isScrolled = ref(false)
 const searchKeyword = ref('')
+const mobileMenuVisible = ref(false)
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920)
 
 const currentLocale = computed(() => locale.value)
+
+// 响应式检测
+const isMobile = computed(() => windowWidth.value <= 768)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+  if (windowWidth.value > 768) {
+    mobileMenuVisible.value = false
+  }
+}
 
 const menuItems = computed(() => [
   { path: '/home', label: t('nav.home'), icon: 'HomeFilled' },
@@ -150,10 +174,13 @@ const handleUserCommand = (command: string) => {
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
+  window.addEventListener('resize', handleResize)
+  handleResize()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -166,11 +193,16 @@ onUnmounted(() => {
   z-index: 1000;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 2px solid transparent;
+  background-image: linear-gradient(white, white),
+    linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   transition: all 0.3s;
 
   &.scrolled {
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 115, 230, 0.15);
+    background: rgba(255, 255, 255, 0.98);
   }
 }
 
@@ -187,14 +219,20 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  color: #409eff;
+  color: #0073e6;
   font-weight: bold;
   font-size: 20px;
+  transition: transform 0.3s;
+
+  &:hover {
+    transform: scale(1.05);
+  }
 
   .logo-text {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
@@ -209,22 +247,81 @@ onUnmounted(() => {
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #606266;
     text-decoration: none;
     transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 115, 230, 0.1), transparent);
+      transition: left 0.5s;
+    }
 
     &:hover {
-      background: #f5f7fa;
-      color: #409eff;
+      background: linear-gradient(135deg, rgba(0, 115, 230, 0.1) 0%, rgba(230, 176, 0, 0.1) 100%);
+      color: #0073e6;
+      transform: translateY(-2px);
+
+      &::before {
+        left: 100%;
+      }
     }
 
     &.active {
-      background: #ecf5ff;
-      color: #409eff;
-      font-weight: 500;
+      background: linear-gradient(135deg, rgba(0, 115, 230, 0.15) 0%, rgba(230, 176, 0, 0.15) 100%);
+      color: #0073e6;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0, 115, 230, 0.2);
     }
   }
+
+  // 移动端菜单样式
+  &.mobile-menu {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    flex-direction: column;
+    padding: 20px;
+    gap: 8px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-bottom: 2px solid transparent;
+    background-image: linear-gradient(white, white),
+      linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+
+    &.mobile-menu-open {
+      max-height: 400px;
+      padding: 20px;
+    }
+
+    .nav-item {
+      width: 100%;
+      justify-content: flex-start;
+      padding: 12px 16px;
+      font-size: 16px;
+    }
+  }
+}
+
+.mobile-menu-btn {
+  display: none;
+  color: #0073e6;
+  font-size: 24px;
 }
 
 .header-actions {
@@ -251,12 +348,45 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .nav-menu {
+  .nav-menu:not(.mobile-menu) {
     display: none;
+  }
+
+  .mobile-menu-btn {
+    display: block;
   }
 
   .search-input {
     width: 120px;
+    font-size: 14px;
+  }
+
+  .logo {
+    font-size: 18px;
+
+    .logo-text {
+      display: none;
+    }
+  }
+
+  .header-content {
+    height: 60px;
+    gap: 12px;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-input {
+    width: 100px;
+    font-size: 12px;
+  }
+
+  .logo {
+    font-size: 16px;
   }
 }
 </style>

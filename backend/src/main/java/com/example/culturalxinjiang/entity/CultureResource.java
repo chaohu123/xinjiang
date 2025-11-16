@@ -61,6 +61,11 @@ public class CultureResource {
     private String region;
 
     @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "lat", column = @Column(name = "location_lat")),
+            @AttributeOverride(name = "lng", column = @Column(name = "location_lng")),
+            @AttributeOverride(name = "address", column = @Column(name = "location_address"))
+    })
     private Location location;
 
     @Column(nullable = false)
@@ -93,6 +98,7 @@ public class CultureResource {
         ARTICLE, EXHIBIT, VIDEO, AUDIO
     }
 }
+
 
 
 

@@ -68,18 +68,19 @@
         <EmptyState v-else-if="!loading" text="资源不存在" />
       </div>
 
-      <el-dialog v-model="showMap" title="位置地图" width="80%">
-        <div v-if="resource?.location" class="map-container" style="height: 500px">
-          <!-- 这里可以集成地图组件 -->
-          <p>地图功能需要配置地图服务API</p>
+      <el-dialog v-model="showMap" title="位置地图" width="80%" @opened="handleMapDialogOpened" @closed="destroyDetailMap">
+        <div v-if="resource?.location" class="map-wrapper">
+          <div ref="detailMapContainer" class="detail-map-container" style="height: 500px"></div>
+          <div v-if="!detailMapLoaded" class="map-loading">地图加载中...</div>
         </div>
+        <div v-else class="map-no-location">该资源暂无位置信息</div>
       </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getResourceDetail, favoriteResource, unfavoriteResource } from '@/api/culture'
 import type { CultureResource } from '@/types/culture'
@@ -88,12 +89,17 @@ import VideoPlayer from '@/components/common/VideoPlayer.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { Location, View, Star, MapLocation } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { loadAMapScript } from '@/utils/amap'
 
 const route = useRoute()
 const resource = ref<CultureResource | null>(null)
 const loading = ref(false)
 const isFavorited = ref(false)
 const showMap = ref(false)
+const detailMapContainer = ref<HTMLElement>()
+const detailMap = ref<AMap.Map | null>(null)
+const detailMarker = ref<AMap.Marker | null>(null)
+const detailMapLoaded = ref(false)
 
 const getTypeName = (type: string) => {
   // 将类型转换为小写以支持大小写不敏感的匹配
@@ -140,8 +146,149 @@ const handleFavorite = async () => {
   }
 }
 
+// 处理地图对话框打开事件
+const handleMapDialogOpened = () => {
+  // 延迟初始化，确保对话框动画完成
+  setTimeout(() => {
+    initDetailMap()
+  }, 150)
+}
+
+// 初始化详情页地图
+const initDetailMap = async () => {
+  if (!resource.value?.location) {
+    return
+  }
+
+  // 等待 DOM 完全渲染
+  await nextTick()
+
+  // 再次等待，确保对话框动画完成
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  if (!detailMapContainer.value) {
+    console.error('地图容器元素不存在')
+    return
+  }
+
+  // 确保容器可见且有尺寸
+  if (!detailMapContainer.value.offsetWidth || !detailMapContainer.value.offsetHeight) {
+    console.error('地图容器尺寸无效')
+    // 再等待一段时间
+    await new Promise(resolve => setTimeout(resolve, 200))
+    if (!detailMapContainer.value.offsetWidth || !detailMapContainer.value.offsetHeight) {
+      ElMessage.error('地图容器未准备好')
+      return
+    }
+  }
+
+  try {
+    // 加载高德地图脚本
+    await loadAMapScript()
+
+    if (!window.AMap || !window.AMap.Map) {
+      ElMessage.error('高德地图加载失败')
+      return
+    }
+
+    // 清除旧的地图实例
+    if (detailMap.value) {
+      detailMap.value.destroy()
+      detailMap.value = null
+    }
+
+    // 再次检查容器是否存在
+    if (!detailMapContainer.value) {
+      console.error('地图容器在初始化过程中被移除')
+      return
+    }
+
+    // 创建地图实例
+    detailMap.value = new window.AMap.Map(detailMapContainer.value, {
+      center: [resource.value.location.lng, resource.value.location.lat],
+      zoom: 15,
+      viewMode: '3D',
+      mapStyle: 'amap://styles/normal',
+    })
+
+    detailMapLoaded.value = true
+
+    // 创建标记点
+    if (detailMarker.value) {
+      detailMap.value.remove(detailMarker.value)
+      detailMarker.value = null
+    }
+
+    // 创建标记内容
+    const markerContent = document.createElement('div')
+    markerContent.className = 'detail-map-marker'
+    markerContent.style.width = '40px'
+    markerContent.style.height = '40px'
+    markerContent.style.borderRadius = '50%'
+    markerContent.style.backgroundColor = '#409EFF'
+    markerContent.style.border = '3px solid #fff'
+    markerContent.style.cursor = 'pointer'
+    markerContent.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
+    markerContent.style.position = 'relative'
+    markerContent.title = resource.value.title
+
+    // 创建标记
+    detailMarker.value = new window.AMap.Marker({
+      position: [resource.value.location.lng, resource.value.location.lat],
+      content: markerContent,
+      title: resource.value.title,
+      offset: new window.AMap.Pixel(-20, -20) as any,
+    })
+
+    detailMap.value.add(detailMarker.value)
+
+    // 创建信息窗口
+    if (resource.value.location.address) {
+      const infoWindow = new window.AMap.InfoWindow({
+        content: `
+          <div style="padding: 8px; max-width: 300px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">${resource.value.title}</h3>
+            <p style="margin: 0; color: #666; font-size: 14px;">${resource.value.location.address}</p>
+          </div>
+        `,
+        offset: new window.AMap.Pixel(0, -30) as any,
+      })
+
+      // 标记点击时显示信息窗口
+      detailMarker.value.on('click', () => {
+        infoWindow.open(detailMap.value!, [resource.value!.location!.lng, resource.value!.location!.lat])
+      })
+
+      // 默认打开信息窗口
+      setTimeout(() => {
+        infoWindow.open(detailMap.value!, [resource.value!.location!.lng, resource.value!.location!.lat])
+      }, 300)
+    }
+  } catch (error: any) {
+    console.error('地图初始化失败:', error)
+    ElMessage.error('地图加载失败：' + (error?.message || '请检查配置'))
+  }
+}
+
+// 销毁详情页地图
+const destroyDetailMap = () => {
+  if (detailMarker.value && detailMap.value) {
+    detailMap.value.remove(detailMarker.value)
+    detailMarker.value = null
+  }
+  if (detailMap.value) {
+    detailMap.value.destroy()
+    detailMap.value = null
+  }
+  detailMapLoaded.value = false
+}
+
 onMounted(() => {
   loadDetail()
+})
+
+onUnmounted(() => {
+  destroyDetailMap()
 })
 </script>
 
@@ -223,12 +370,66 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.map-container {
+.map-wrapper {
+  position: relative;
   width: 100%;
+  height: 500px;
+}
+
+.detail-map-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: #f5f7fa;
+
+  :deep(.amap-controls) {
+    right: 10px;
+    top: 10px;
+  }
+
+  :deep(.amap-logo) {
+    display: none !important;
+  }
+
+  :deep(.amap-copyright) {
+    bottom: 0;
+    font-size: 10px;
+  }
+}
+
+.detail-map-marker {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+  }
+}
+
+.map-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #909399;
+  font-size: 14px;
+}
+
+.map-no-location {
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 500px;
   color: #909399;
+  font-size: 14px;
 }
 </style>

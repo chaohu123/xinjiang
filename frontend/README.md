@@ -335,8 +335,28 @@ frontend/
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080/api
-VITE_MAPBOX_TOKEN=your_mapbox_token
+VITE_AMAP_KEY=your_amap_key
 ```
+
+### 高德地图 API Key 配置
+
+1. **申请高德地图 API Key**：
+   - 访问 [高德开放平台](https://lbs.amap.com/)
+   - 注册账号并登录
+   - 进入控制台 → 应用管理 → 我的应用
+   - 创建新应用，选择 "Web端(JS API)"
+   - 复制生成的 API Key
+
+2. **配置环境变量**：
+   - 在 `frontend/.env` 或 `frontend/.env.local` 文件中添加：
+   ```env
+   VITE_AMAP_KEY=your_amap_key_here
+   ```
+
+3. **注意事项**：
+   - 高德地图使用 GCJ-02 坐标系（火星坐标系）
+   - 确保数据库中的坐标数据格式正确：`[经度, 纬度]`
+   - 高德地图在中国大陆访问更稳定，速度更快
 
 ### API 代理配置
 
