@@ -128,7 +128,7 @@
               <el-radio-button
                 v-for="option in favoriteFilterOptions"
                 :key="option.value"
-                :label="option.value"
+                :value="option.value"
               >
                 {{ option.label }}
               </el-radio-button>
@@ -393,15 +393,15 @@ const statusLabel = (status?: string) => {
   )
 }
 
-const statusType = (status?: string) => {
+const statusTypeMap: Record<string, CalendarPreview['statusType']> = {
+  upcoming: 'info',
+  ongoing: 'success',
+  past: 'warning',
+}
+
+const statusType = (status?: string): CalendarPreview['statusType'] => {
   const normalized = status?.toLowerCase()
-  return (
-    {
-      upcoming: 'info',
-      ongoing: 'success',
-      past: 'warning',
-    }[normalized ?? ''] || 'info'
-  )
+  return statusTypeMap[normalized ?? ''] ?? 'info'
 }
 
 const buildEventRange = (event: Event) => {
@@ -457,7 +457,7 @@ const galleryItems = computed<GalleryItem[]>(() => {
   }))
 })
 
-const calendarPreview = computed<CalendarPreview[]>(() => {
+const calendarPreview = computed((): CalendarPreview[] => {
   const baseEvents: Event[] = events.list.length
     ? events.list
     : userInfo.value?.registeredEvents ?? []
@@ -496,8 +496,8 @@ const handleAvatarUpload = async ({ file }: UploadRequestOptions) => {
         headers: { 'Content-Type': 'multipart/form-data' },
       },
     )
-    if (result?.url) {
-      await userStore.updateUser({ avatar: result.url })
+    if (result?.data?.url) {
+      await userStore.updateUser({ avatar: result.data.url })
       ElMessage.success(t('profile.avatarUpdated'))
     }
   } finally {

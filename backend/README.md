@@ -244,7 +244,21 @@ spring:
     port: 6379
 ```
 
-#### 2.4 运行应用
+#### 2.4 AI 密钥配置（必须）
+
+1. 复制 `src/main/resources/application-local.yml.example`，并重命名为 `application-local.yml`。
+2. 在新文件中把 `sk-your-deepseek-api-key` 替换为你的真实 DeepSeek Key（例如 `sk-0d2fc9960f654d7db1ef5bf8c7ef6642`）。该文件已在 `.gitignore` 中，不会被提交。
+3. 或者直接在终端设置环境变量：
+   - Windows PowerShell：`setx DEEPSEEK_API_KEY "sk-0d2fc9960f654d7db1ef5bf8c7ef6642"`
+   - macOS/Linux：`export DEEPSEEK_API_KEY="sk-0d2fc9960f654d7db1ef5bf8c7ef6642"`
+4. 启动本地时激活 `local` 配置：`mvn spring-boot:run -Dspring.profiles.active=local`
+
+> **安全提交建议**
+> - 提交前执行 `git status` 与 `git diff`，确认没有 `.env`、`application-local.yml` 等敏感文件。
+> - 使用 `git grep -n "sk-"` 检查仓库中是否残留密钥。
+> - 在 GitHub 仓库的 *Settings → Secrets and variables → Actions* 中配置 `DEEPSEEK_API_KEY`，CI/CD 或部署流程统一从 Secrets 读取。
+
+#### 2.5 运行应用
 
 ```bash
 # 使用 Maven

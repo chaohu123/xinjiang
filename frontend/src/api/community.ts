@@ -62,9 +62,12 @@ export const commentPost = (id: number, content: string) => {
 
 // 获取我的帖子
 export const getMyPosts = (params?: { page?: number; size?: number }) => {
-  return request.get<{ list: CommunityPost[]; total: number }>('/community/posts/my', {
-    params,
-  })
+  return request.get<{ list: CommunityPost[]; total: number }, { list: CommunityPost[]; total: number }>(
+    '/community/posts/my',
+    {
+      params,
+    },
+  )
 }
 
 // 获取点赞的帖子

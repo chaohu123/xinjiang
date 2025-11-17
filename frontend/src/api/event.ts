@@ -9,7 +9,10 @@ export const getEvents = (params?: {
   page?: number
   size?: number
 }) => {
-  return request.get<{ list: Event[]; total: number }>('/events', { params })
+  return request.get<{ list: Event[]; total: number }, { list: Event[]; total: number }>(
+    '/events',
+    { params },
+  )
 }
 
 // 获取活动详情
@@ -28,17 +31,17 @@ export const cancelEventRegistration = (id: number) => {
 }
 
 // 获取我的已报名活动
-export const getMyRegisteredEvents = (params?: {
-  page?: number
-  size?: number
-}) => {
-  return request.get<{ list: Event[]; total: number }>('/events/my-registrations', { params })
+export const getMyRegisteredEvents = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: Event[]; total: number }, { list: Event[]; total: number }>(
+    '/events/my-registrations',
+    { params },
+  )
 }
 
 // 获取首页最新动态（一个月前后的活动）
-export const getLatestEvents = (params?: {
-  page?: number
-  size?: number
-}) => {
-  return request.get<{ list: Event[]; total: number }>('/events/latest', { params })
+export const getLatestEvents = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: Event[]; total: number }, { list: Event[]; total: number }>(
+    '/events/latest',
+    { params },
+  )
 }
