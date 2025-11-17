@@ -65,8 +65,10 @@ public class SecurityConfig {
                         .requestMatchers("/culture/**").permitAll()
                         .requestMatchers("/events").permitAll()
                         .requestMatchers("/events/**").permitAll()
-                        .requestMatchers("/routes").permitAll()
-                        .requestMatchers("/routes/**").permitAll()
+                        .requestMatchers("/routes").permitAll() // 获取路线列表（示例路线）
+                        .requestMatchers("/routes/{id}").permitAll() // 获取路线详情
+                        .requestMatchers("/routes/generate").authenticated() // 生成路线需要登录
+                        .requestMatchers("/routes/my").authenticated() // 获取我的路线需要登录
                         .requestMatchers("/community/posts").permitAll()
                         .requestMatchers("/community/posts/**").permitAll()
                         .requestMatchers("/carousel").permitAll()

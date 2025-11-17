@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface RouteRepository extends JpaRepository<Route, Long> {
     Page<Route> findByTheme(String theme, Pageable pageable);
+    Page<Route> findByUserId(Long userId, Pageable pageable);
 }
 
 

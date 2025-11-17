@@ -1,3 +1,13 @@
+import type { Event } from '@/types/event'
+
+export interface UserBadge {
+  id: string | number
+  label: string
+  description?: string
+  earnedAt?: string
+  icon?: string
+}
+
 export interface UserInfo {
   id: number
   username: string
@@ -10,4 +20,8 @@ export interface UserInfo {
   enabled?: boolean
   createdAt: string
   updatedAt: string
+  cover?: string
+  gallery?: string[]
+  badges?: UserBadge[]
+  registeredEvents?: Event[]
 }

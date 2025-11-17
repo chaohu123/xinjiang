@@ -33,8 +33,15 @@ Thumbs.db
 
 # Application
 application-local.yml
+application-*.yml
+application-*.properties
 *.jar
 !maven-wrapper.jar
+
+# 敏感配置文件
+**/application-local.yml
+**/application-secret.yml
+**/application-prod-secret.yml
 
 
 

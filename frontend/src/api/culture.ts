@@ -19,7 +19,7 @@ export interface SearchResponse {
 
 // 搜索文化资源
 export const searchResources = (params: SearchParams) => {
-  return request.get<SearchResponse>('/culture/search', { params })
+  return request.get<SearchResponse, SearchResponse>('/culture/search', { params })
 }
 
 // 获取资源详情
@@ -51,8 +51,10 @@ export const unfavoriteResource = (type: CultureType, id: number) => {
 
 // 获取收藏列表
 export const getFavorites = (params: { page?: number; size?: number }) => {
-  return request.get<SearchResponse>('/user/favorites', { params })
+  return request.get<SearchResponse, SearchResponse>('/user/favorites', { params })
 }
+
+
 
 
 

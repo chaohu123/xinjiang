@@ -7,6 +7,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import en from 'element-plus/dist/locale/en.mjs'
 import 'nprogress/nprogress.css'
+import '@/styles/theme-variables.css'
 import '@/styles/main.scss'
 import App from './App.vue'
 import router from './router'
@@ -38,6 +39,8 @@ app.use(router)
 setupAxios()
 
 app.mount('#app')
+
+
 
 
 

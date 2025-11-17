@@ -38,6 +38,15 @@ public class RouteController {
         RouteDetailResponse response = routeService.generateRoute(request);
         return ApiResponse.success(response);
     }
+
+    @GetMapping("/my")
+    public ApiResponse<PageResponse<RouteResponse>> getMyRoutes(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<RouteResponse> response = routeService.getMyRoutes(page, size);
+        return ApiResponse.success(response);
+    }
 }
 
 

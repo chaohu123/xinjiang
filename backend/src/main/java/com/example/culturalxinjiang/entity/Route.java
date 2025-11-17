@@ -61,6 +61,10 @@ public class Route {
     @Builder.Default
     private Integer favorites = 0;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user; // 路线创建者，可为空（示例路线没有创建者）
+
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ItineraryItem> itinerary = new ArrayList<>();

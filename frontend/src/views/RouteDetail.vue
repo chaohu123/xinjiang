@@ -1,51 +1,111 @@
 <template>
   <div class="route-detail-page">
-    <div class="container">
-      <div v-loading="loading" class="route-detail-content">
-        <div v-if="routeDetail" class="route-header">
-          <h1>{{ routeDetail.title }}</h1>
-          <p>{{ routeDetail.description }}</p>
-          <div class="route-info">
-            <span>
-              <el-icon><Clock /></el-icon>
-              {{ routeDetail.duration }} 天
-            </span>
-            <span>
-              <el-icon><MapLocation /></el-icon>
-              {{ routeDetail.distance }}km
-            </span>
-            <span>
-              <el-icon><Location /></el-icon>
-              {{ routeDetail.startLocation }} → {{ routeDetail.endLocation }}
-            </span>
+    <!-- 头部横幅区域 -->
+    <div v-if="routeDetail" class="route-hero">
+      <div class="hero-background">
+        <div class="hero-gradient"></div>
+        <div class="hero-pattern"></div>
+      </div>
+      <div class="container">
+        <div class="hero-content">
+          <div class="route-badge">
+            <span class="badge-icon">🏔️</span>
+            <span>精品路线</span>
+          </div>
+          <h1 class="route-title">{{ routeDetail.title }}</h1>
+          <p class="route-subtitle">{{ routeDetail.description }}</p>
+          <div class="route-info-cards">
+            <div class="info-card">
+              <div class="info-icon blue">
+                <el-icon><Clock /></el-icon>
+              </div>
+              <div class="info-content">
+                <div class="info-label">行程天数</div>
+                <div class="info-value">{{ routeDetail.duration }} 天</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-icon gold">
+                <el-icon><MapLocation /></el-icon>
+              </div>
+              <div class="info-content">
+                <div class="info-label">总里程</div>
+                <div class="info-value">{{ routeDetail.distance }}km</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-icon red">
+                <el-icon><Location /></el-icon>
+              </div>
+              <div class="info-content">
+                <div class="info-label">路线</div>
+                <div class="info-value">{{ routeDetail.startLocation }} → {{ routeDetail.endLocation }}</div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
 
+    <!-- 行程安排区域 -->
+    <div class="container">
+      <div v-loading="loading" class="route-detail-content">
         <div v-if="routeDetail" class="route-itinerary">
-          <h2>行程安排</h2>
-          <el-timeline>
-            <el-timeline-item
-              v-for="item in routeDetail.itinerary"
+          <div class="itinerary-header">
+            <div class="header-decoration">
+              <div class="decoration-line left"></div>
+              <div class="decoration-icon">✨</div>
+              <h2>行程安排</h2>
+              <div class="decoration-icon">✨</div>
+              <div class="decoration-line right"></div>
+            </div>
+            <p class="itinerary-subtitle">探索新疆的每一处精彩</p>
+          </div>
+
+          <div class="custom-timeline">
+            <div
+              v-for="(item, index) in routeDetail.itinerary"
               :key="item.day"
-              :timestamp="`第 ${item.day} 天`"
-              placement="top"
+              class="timeline-item"
+              :class="{ 'last-item': index === routeDetail.itinerary.length - 1 }"
             >
-              <el-card>
-                <h3>{{ item.title }}</h3>
-                <p>{{ item.description }}</p>
-                <div v-if="item.locations.length > 0" class="locations">
-                  <el-tag
-                    v-for="loc in item.locations"
-                    :key="loc.name"
-                    type="info"
-                    style="margin-right: 8px"
-                  >
-                    {{ loc.name }}
-                  </el-tag>
+              <div class="timeline-marker">
+                <div class="marker-circle">
+                  <span class="day-number">{{ item.day }}</span>
                 </div>
-              </el-card>
-            </el-timeline-item>
-          </el-timeline>
+                <div v-if="index !== routeDetail.itinerary.length - 1" class="marker-line"></div>
+              </div>
+              <div class="timeline-content">
+                <div class="day-card">
+                  <div class="day-header">
+                    <span class="day-label">第 {{ item.day }} 天</span>
+                    <div class="day-divider"></div>
+                  </div>
+                  <h3 class="day-title">{{ item.title }}</h3>
+                  <p class="day-description">{{ item.description }}</p>
+                  <div v-if="item.locations.length > 0" class="day-locations">
+                    <div
+                      v-for="(loc, locIndex) in item.locations"
+                      :key="loc.name"
+                      class="location-tag"
+                      :style="{ animationDelay: `${locIndex * 0.1}s` }"
+                    >
+                      <span class="tag-icon">📍</span>
+                      <span class="tag-text">{{ loc.name }}</span>
+                    </div>
+                  </div>
+                  <div v-if="item.accommodation" class="day-extra">
+                    <span class="extra-label">住宿：</span>
+                    <span class="extra-value">{{ item.accommodation }}</span>
+                  </div>
+                  <div v-if="item.meals && item.meals.length > 0" class="day-extra">
+                    <span class="extra-label">餐饮：</span>
+                    <span class="extra-value">{{ item.meals.join('、') }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -83,53 +143,544 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .route-detail-page {
-  padding: 40px 0;
   min-height: calc(100vh - 70px);
+  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
 }
 
-.route-detail-content {
-  background: white;
-  border-radius: 8px;
-  padding: 30px;
-}
-
-.route-header {
+// 头部横幅区域
+.route-hero {
+  position: relative;
+  padding: 80px 0 60px;
+  overflow: hidden;
   margin-bottom: 40px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #ebeef5;
 
-  h1 {
-    font-size: 32px;
-    margin-bottom: 16px;
-    color: #303133;
+  .hero-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
   }
 
-  p {
-    font-size: 16px;
+  .hero-gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(0, 115, 230, 0.08) 0%,
+      rgba(230, 176, 0, 0.08) 50%,
+      rgba(230, 0, 0, 0.08) 100%
+    );
+  }
+
+  .hero-pattern {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z" fill="%23e6b000" fill-opacity="0.05" fill-rule="evenodd"/%3E%3C/svg%3E');
+    background-size: 200px 200px;
+    opacity: 0.4;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+  }
+
+  .route-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e6b000;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(230, 176, 0, 0.15);
+    animation: fadeInDown 0.6s ease-out;
+
+    .badge-icon {
+      font-size: 18px;
+    }
+  }
+
+  .route-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+  }
+
+  .route-subtitle {
+    font-size: 18px;
     color: #606266;
     line-height: 1.8;
-    margin-bottom: 20px;
+    max-width: 800px;
+    margin: 0 auto 40px;
+    animation: fadeInUp 0.6s ease-out 0.4s both;
+  }
+
+  .route-info-cards {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    animation: fadeInUp 0.6s ease-out 0.6s both;
+  }
+
+  .info-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 28px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    min-width: 200px;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .info-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+      flex-shrink: 0;
+
+      &.blue {
+        background: linear-gradient(135deg, #0073e6 0%, #005bb3 100%);
+      }
+
+      &.gold {
+        background: linear-gradient(135deg, #e6b000 0%, #b38f00 100%);
+      }
+
+      &.red {
+        background: linear-gradient(135deg, #e60000 0%, #b30000 100%);
+      }
+    }
+
+    .info-content {
+      .info-label {
+        font-size: 12px;
+        color: #909399;
+        margin-bottom: 4px;
+      }
+
+      .info-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #303133;
+      }
+    }
   }
 }
 
-.route-info {
-  display: flex;
-  gap: 24px;
-  color: #909399;
-  font-size: 14px;
-
-  span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
+// 行程安排区域
+.route-detail-content {
+  background: white;
+  border-radius: 20px;
+  padding: 50px 40px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  margin-bottom: 40px;
 }
 
 .route-itinerary {
-  h2 {
-    font-size: 24px;
-    margin-bottom: 24px;
-    color: #303133;
+  .itinerary-header {
+    text-align: center;
+    margin-bottom: 50px;
+
+    .header-decoration {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 12px;
+
+      .decoration-line {
+        flex: 1;
+        height: 2px;
+        max-width: 150px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          #e6b000,
+          transparent
+        );
+
+        &.left {
+          background: linear-gradient(to right, transparent, #e6b000);
+        }
+
+        &.right {
+          background: linear-gradient(to left, transparent, #e6b000);
+        }
+      }
+
+      .decoration-icon {
+        font-size: 20px;
+        animation: twinkle 2s ease-in-out infinite;
+      }
+
+      h2 {
+        font-size: 36px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+      }
+    }
+
+    .itinerary-subtitle {
+      font-size: 16px;
+      color: #909399;
+      font-style: italic;
+    }
+  }
+
+  .custom-timeline {
+    position: relative;
+    padding-left: 60px;
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 40px;
+
+      &.last-item {
+        margin-bottom: 0;
+      }
+
+      .timeline-marker {
+        position: absolute;
+        left: -60px;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        .marker-circle {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 16px rgba(0, 115, 230, 0.3);
+          position: relative;
+          z-index: 2;
+          transition: all 0.3s ease;
+
+          &::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0073e6, #e6b000, #e60000);
+            opacity: 0.3;
+            z-index: -1;
+            animation: pulse 2s ease-in-out infinite;
+          }
+
+          .day-number {
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+          }
+        }
+
+        .marker-line {
+          width: 3px;
+          height: calc(100% + 40px);
+          background: linear-gradient(
+            to bottom,
+            #0073e6,
+            #e6b000,
+            #e60000
+          );
+          margin-top: 8px;
+          border-radius: 2px;
+          opacity: 0.3;
+        }
+      }
+
+      .timeline-content {
+        .day-card {
+          background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+          border-radius: 20px;
+          padding: 32px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+          border: 1px solid rgba(230, 176, 0, 0.1);
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+
+          &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0073e6, #e6b000, #e60000);
+          }
+
+          &:hover {
+            transform: translateX(8px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            border-color: rgba(230, 176, 0, 0.3);
+          }
+
+          .day-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+
+            .day-label {
+              font-size: 14px;
+              font-weight: 600;
+              color: #e6b000;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+
+            .day-divider {
+              flex: 1;
+              height: 1px;
+              background: linear-gradient(
+                to right,
+                #e6b000,
+                transparent
+              );
+            }
+          }
+
+          .day-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #303133;
+            margin-bottom: 12px;
+            line-height: 1.4;
+          }
+
+          .day-description {
+            font-size: 16px;
+            color: #606266;
+            line-height: 1.8;
+            margin-bottom: 20px;
+          }
+
+          .day-locations {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+
+            .location-tag {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 8px 16px;
+              background: linear-gradient(135deg, rgba(0, 115, 230, 0.1), rgba(230, 176, 0, 0.1));
+              border: 1px solid rgba(230, 176, 0, 0.2);
+              border-radius: 20px;
+              font-size: 14px;
+              color: #303133;
+              transition: all 0.3s ease;
+              animation: fadeInScale 0.5s ease-out both;
+
+              &:hover {
+                background: linear-gradient(135deg, rgba(0, 115, 230, 0.15), rgba(230, 176, 0, 0.15));
+                border-color: rgba(230, 176, 0, 0.4);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(230, 176, 0, 0.2);
+              }
+
+              .tag-icon {
+                font-size: 16px;
+              }
+
+              .tag-text {
+                font-weight: 500;
+              }
+            }
+          }
+
+          .day-extra {
+            padding: 12px 16px;
+            background: rgba(0, 115, 230, 0.05);
+            border-radius: 12px;
+            font-size: 14px;
+            margin-top: 12px;
+
+            .extra-label {
+              color: #909399;
+              margin-right: 8px;
+            }
+
+            .extra-value {
+              color: #303133;
+              font-weight: 500;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 动画
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.5;
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .route-hero {
+    padding: 60px 0 40px;
+
+    .route-title {
+      font-size: 32px;
+    }
+
+    .route-subtitle {
+      font-size: 16px;
+      padding: 0 20px;
+    }
+
+    .route-info-cards {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .info-card {
+      width: 100%;
+      max-width: 300px;
+    }
+  }
+
+  .route-detail-content {
+    padding: 30px 20px;
+    border-radius: 16px;
+  }
+
+  .custom-timeline {
+    padding-left: 40px;
+
+    .timeline-item {
+      .timeline-marker {
+        left: -40px;
+
+        .marker-circle {
+          width: 40px;
+          height: 40px;
+
+          .day-number {
+            font-size: 16px;
+          }
+        }
+      }
+
+      .timeline-content {
+        .day-card {
+          padding: 24px;
+
+          .day-title {
+            font-size: 20px;
+          }
+        }
+      }
+    }
+  }
+
+  .itinerary-header {
+    .header-decoration {
+      h2 {
+        font-size: 28px;
+      }
+
+      .decoration-line {
+        max-width: 80px;
+      }
+    }
   }
 }
 </style>

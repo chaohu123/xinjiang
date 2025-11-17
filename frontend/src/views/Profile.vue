@@ -1,1309 +1,859 @@
 <template>
   <div class="profile-page">
-    <div class="container">
-      <el-tabs v-model="activeTab" class="profile-tabs">
-        <el-tab-pane :label="$t('profile.basicInfo')" name="info">
-          <el-card class="info-card">
-            <el-form :model="userInfo" label-width="100px" style="max-width: 600px">
-              <el-form-item label="头像">
-                <el-upload
-                  class="avatar-uploader"
-                  action="/api/upload"
-                  :show-file-list="false"
-                  :on-success="handleAvatarSuccess"
-                >
-                  <el-avatar :src="userInfo.avatar" :size="100">
-                    {{ userInfo.username?.[0] }}
-                  </el-avatar>
-                </el-upload>
-              </el-form-item>
-              <el-form-item :label="$t('profile.username')">
-                <el-input v-model="userInfo.username" disabled />
-              </el-form-item>
-              <el-form-item :label="$t('profile.email')">
-                <el-input v-model="userInfo.email" />
-              </el-form-item>
-              <el-form-item :label="$t('profile.phone')">
-                <el-input v-model="userInfo.phone" />
-              </el-form-item>
-              <el-form-item label="昵称">
-                <el-input v-model="userInfo.nickname" />
-              </el-form-item>
-              <el-form-item label="简介">
-                <el-input v-model="userInfo.bio" type="textarea" :rows="4" />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="handleSave">
-                  {{ $t('common.save') }}
-                </el-button>
-              </el-form-item>
-            </el-form>
-          </el-card>
-        </el-tab-pane>
+    <ScenicHero
+      :display-name="displayName"
+      :bio="userInfo?.bio ?? ''"
+      :avatar="userInfo?.avatar"
+      :initials="initials"
+      :membership-tier="membershipTier"
+      :join-date="joinDate"
+      :email="userInfo?.email ?? ''"
+      :days-active="daysSinceJoin"
+      :stats="highlightStats"
+      :completion="profileCompletion"
+      :badges="heroBadges"
+      :cover="heroCover"
+      :avatar-uploading="avatarUploading"
+      :before-upload="beforeAvatarUpload"
+      :upload-request="handleAvatarUpload"
+      :refresh-loading="pageLoading"
+      @edit="openEditProfile"
+      @refresh="refreshAll"
+    />
 
-        <el-tab-pane :label="$t('profile.favorites')" name="favorites">
-          <el-tabs v-model="favoriteSubTab" class="sub-tabs">
-            <el-tab-pane label="文化资源" name="culture">
-              <div v-loading="favoritesLoading" class="favorites-grid">
-                <CultureCard v-for="item in favorites" :key="item.id" :resource="item" />
-              </div>
-              <EmptyState
-                v-if="!favoritesLoading && favorites.length === 0"
-                :text="$t('common.noData')"
-              />
-            </el-tab-pane>
-            <el-tab-pane label="收藏的帖子" name="posts">
-              <div v-loading="favoritePostsLoading" class="posts-list">
-                <el-card v-for="post in favoritePosts" :key="post.id" class="post-card" @click="$router.push(`/community/post/${post.id}`)">
-                  <div class="post-header">
-                    <el-avatar :src="post.author.avatar" :size="40">
-                      {{ post.author.username[0] }}
-                    </el-avatar>
-                    <div class="post-author">
-                      <div class="author-name">{{ post.author.username }}</div>
-                      <div class="post-time">{{ fromNow(post.createdAt) }}</div>
-                    </div>
-                  </div>
-                  <h3 class="post-title">{{ post.title }}</h3>
-                  <p class="post-content">{{ post.content }}</p>
-                  <div class="post-footer">
-                    <div class="post-tags">
-                      <el-tag v-for="tag in post.tags" :key="tag" size="small" style="margin-right: 8px">
-                        {{ tag }}
-                      </el-tag>
-                    </div>
-                    <div class="post-meta">
-                      <span>
-                        <el-icon><Star /></el-icon>
-                        {{ post.likes }}
-                      </span>
-                      <span>
-                        <el-icon><ChatLineRound /></el-icon>
-                        {{ post.comments }}
-                      </span>
-                    </div>
-                  </div>
-                </el-card>
-              </div>
-              <EmptyState v-if="!favoritePostsLoading && favoritePosts.length === 0" :text="$t('common.noData')" />
-            </el-tab-pane>
-          </el-tabs>
-        </el-tab-pane>
+    <section class="profile-enhance-grid">
+      <GalleryCarousel
+        :title="t('profile.galleryTitle')"
+        :subtitle="t('profile.gallerySubtitle')"
+        :items="galleryItems"
+        :loading="loading.favorites"
+        :empty-text="t('profile.noGallery')"
+      >
+        <template #action>
+          <el-button text type="primary" @click="router.push({ name: 'Community' })">
+            {{ t('profile.galleryViewAll') }}
+          </el-button>
+        </template>
+      </GalleryCarousel>
 
-        <el-tab-pane :label="$t('profile.posts')" name="posts">
-          <div v-loading="myPostsLoading" class="posts-list">
-            <el-card v-for="post in myPosts" :key="post.id" class="post-card">
-              <div class="post-header">
-                <el-avatar :src="post.author.avatar" :size="40">
-                  {{ post.author.username[0] }}
-                </el-avatar>
-                <div class="post-author">
-                  <div class="author-name">{{ post.author.username }}</div>
-                  <div class="post-time">{{ fromNow(post.createdAt) }}</div>
-                </div>
-                <div class="post-actions" @click.stop>
-                  <el-button
-                    type="primary"
-                    size="small"
-                    :icon="Edit"
-                    @click="handleEditPost(post)"
-                  >
-                    编辑
-                  </el-button>
-                  <el-button
-                    type="danger"
-                    size="small"
-                    :icon="Delete"
-                    @click="handleDeletePost(post)"
-                  >
-                    删除
-                  </el-button>
-                </div>
-              </div>
-              <div class="post-status-section">
-                <el-tag
-                  :type="getPostStatusType(post.status || 'pending')"
-                  size="small"
-                  style="margin-bottom: 12px"
-                >
-                  {{ getPostStatusLabel(post.status || 'pending') }}
-                </el-tag>
-                <el-alert
-                  v-if="post.status === 'rejected' && post.rejectReason"
-                  :title="`拒绝原因：${post.rejectReason}`"
-                  type="error"
-                  :closable="false"
-                  show-icon
-                  style="margin-bottom: 12px"
-                />
-              </div>
-              <h3 class="post-title" @click="$router.push(`/community/post/${post.id}`)">{{ post.title }}</h3>
-              <p class="post-content" @click="$router.push(`/community/post/${post.id}`)">{{ post.content }}</p>
-              <div v-if="post.images && post.images.length > 0" class="post-images" @click.stop>
-                <el-image
-                  v-for="(img, index) in post.images.slice(0, 3)"
-                  :key="index"
-                  :src="img"
-                  fit="cover"
-                  class="post-image"
-                  :preview-src-list="post.images"
-                  :initial-index="index"
-                />
-              </div>
-              <div class="post-footer">
-                <div class="post-tags">
-                  <el-tag v-for="tag in post.tags" :key="tag" size="small" style="margin-right: 8px">
-                    {{ tag }}
-                  </el-tag>
-                </div>
-                <div class="post-meta">
-                  <span>
-                    <el-icon><Star /></el-icon>
-                    {{ post.likes }}
-                  </span>
-                  <span>
-                    <el-icon><ChatLineRound /></el-icon>
-                    {{ post.comments }}
-                  </span>
-                  <span>
-                    <el-icon><View /></el-icon>
-                    {{ post.views }}
-                  </span>
-                </div>
-              </div>
-            </el-card>
+      <MiniEventsCalendar
+        :title="t('profile.calendarTitle')"
+        :subtitle="t('profile.calendarSubtitle')"
+        :action-label="t('profile.calendarViewAll')"
+        :events="calendarPreview"
+        :empty-text="t('profile.noEvents')"
+        :loading="loading.events"
+        @view-all="router.push({ name: 'Events' })"
+      />
+    </section>
+
+    <div class="quick-cards">
+      <el-card
+        v-for="quick in quickActions"
+        :key="quick.key"
+        class="quick-card"
+        shadow="hover"
+        @click="quick.action()"
+      >
+        <div class="quick-card-inner">
+          <div>
+            <p class="quick-title">{{ quick.title }}</p>
+            <p class="quick-desc">{{ quick.desc }}</p>
           </div>
-          <EmptyState v-if="!myPostsLoading && myPosts.length === 0" :text="$t('common.noData')" />
-        </el-tab-pane>
+          <el-icon><ArrowRight /></el-icon>
+        </div>
+      </el-card>
+    </div>
 
-        <el-tab-pane label="我的互动" name="interactions">
-          <el-tabs v-model="interactionSubTab" class="sub-tabs">
-            <el-tab-pane label="点赞的帖子" name="liked">
-              <div v-loading="likedPostsLoading" class="posts-list">
-                <el-card v-for="post in likedPosts" :key="post.id" class="post-card" @click="$router.push(`/community/post/${post.id}`)">
-                  <div class="post-header">
-                    <el-avatar :src="post.author.avatar" :size="40">
-                      {{ post.author.username[0] }}
-                    </el-avatar>
-                    <div class="post-author">
-                      <div class="author-name">{{ post.author.username }}</div>
-                      <div class="post-time">{{ fromNow(post.createdAt) }}</div>
-                    </div>
-                  </div>
-                  <h3 class="post-title">{{ post.title }}</h3>
-                  <p class="post-content">{{ post.content }}</p>
-                  <div class="post-footer">
-                    <div class="post-tags">
-                      <el-tag v-for="tag in post.tags" :key="tag" size="small" style="margin-right: 8px">
-                        {{ tag }}
-                      </el-tag>
-                    </div>
-                    <div class="post-meta">
-                      <span>
-                        <el-icon><Star /></el-icon>
-                        {{ post.likes }}
-                      </span>
-                      <span>
-                        <el-icon><ChatLineRound /></el-icon>
-                        {{ post.comments }}
-                      </span>
-                    </div>
-                  </div>
-                </el-card>
+    <el-card class="content-card" shadow="never">
+      <el-tabs v-model="activeTab" class="profile-tabs">
+        <el-tab-pane :label="t('profile.activityTab')" name="activity">
+          <div class="activity-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>{{ t('profile.recentPosts') }}</h3>
+                <el-button link @click="router.push({ name: 'Community' })">{{
+                  t('profile.viewAll')
+                }}</el-button>
               </div>
-              <EmptyState v-if="!likedPostsLoading && likedPosts.length === 0" :text="$t('common.noData')" />
-            </el-tab-pane>
-            <el-tab-pane label="评论的帖子" name="commented">
-              <div v-loading="commentedPostsLoading" class="posts-list">
-                <el-card v-for="post in commentedPosts" :key="post.id" class="post-card" @click="$router.push(`/community/post/${post.id}`)">
-                  <div class="post-header">
-                    <el-avatar :src="post.author.avatar" :size="40">
-                      {{ post.author.username[0] }}
-                    </el-avatar>
-                    <div class="post-author">
-                      <div class="author-name">{{ post.author.username }}</div>
-                      <div class="post-time">{{ fromNow(post.createdAt) }}</div>
+              <el-skeleton :loading="loading.posts" animated>
+                <div v-if="posts.list.length" class="list">
+                  <div
+                    v-for="post in posts.list"
+                    :key="post.id"
+                    class="list-item"
+                    @click="router.push(`/community/post/${post.id}`)"
+                  >
+                    <div class="item-head">
+                      <p class="item-title">{{ post.title }}</p>
+                      <span class="item-time">{{ formatRelative(post.createdAt) }}</span>
                     </div>
+                    <p class="item-meta">
+                      {{ t('profile.postMeta', { likes: post.likes, comments: post.comments }) }}
+                    </p>
                   </div>
-                  <h3 class="post-title">{{ post.title }}</h3>
-                  <p class="post-content">{{ post.content }}</p>
-                  <div class="post-footer">
-                    <div class="post-tags">
-                      <el-tag v-for="tag in post.tags" :key="tag" size="small" style="margin-right: 8px">
-                        {{ tag }}
-                      </el-tag>
-                    </div>
-                    <div class="post-meta">
-                      <span>
-                        <el-icon><Star /></el-icon>
-                        {{ post.likes }}
-                      </span>
-                      <span>
-                        <el-icon><ChatLineRound /></el-icon>
-                        {{ post.comments }}
-                      </span>
-                    </div>
-                  </div>
-                </el-card>
-              </div>
-              <EmptyState v-if="!commentedPostsLoading && commentedPosts.length === 0" :text="$t('common.noData')" />
-            </el-tab-pane>
-          </el-tabs>
-        </el-tab-pane>
+                </div>
+                <el-empty v-else :description="t('profile.noPosts')" />
+              </el-skeleton>
+            </div>
 
-        <el-tab-pane label="我的活动" name="events">
-          <div v-loading="registeredEventsLoading" class="events-list">
-            <el-card
-              v-for="event in registeredEvents"
-              :key="event.id"
-              class="event-card"
-              @click="$router.push(`/event/${event.id}`)"
-            >
-              <div class="event-content">
-                <el-image :src="event.cover" fit="cover" class="event-image" />
-                <div class="event-info">
-                  <div class="event-header">
-                    <h3>{{ event.title }}</h3>
-                    <el-tag :type="getEventStatusType(event.status)">
-                      {{ getEventStatusText(event.status) }}
+            <div class="panel">
+              <div class="panel-head">
+                <h3>{{ t('profile.registeredEvents') }}</h3>
+                <el-button link @click="router.push({ name: 'Events' })">{{
+                  t('profile.manage')
+                }}</el-button>
+              </div>
+              <el-skeleton :loading="loading.events" animated>
+                <div v-if="events.list.length" class="timeline">
+                  <div v-for="event in events.list" :key="event.id" class="timeline-item">
+                    <div>
+                      <p class="item-title">{{ event.title }}</p>
+                      <p class="item-meta">{{ buildEventRange(event) }}</p>
+                    </div>
+                    <el-tag size="small" :type="statusType(event.status)">
+                      {{ statusLabel(event.status) }}
                     </el-tag>
                   </div>
-                  <p class="event-description">{{ event.description }}</p>
-                  <div class="event-meta">
-                    <span v-if="event.startDate">
-                      <el-icon><Calendar /></el-icon>
-                      {{ formatDate(event.startDate, 'YYYY-MM-DD') }}
-                      <template v-if="event.endDate">
-                        ~ {{ formatDate(event.endDate, 'YYYY-MM-DD') }}
-                      </template>
-                    </span>
-                    <span v-if="event.location?.name">
-                      <el-icon><Location /></el-icon>
-                      {{ event.location.name }}
-                    </span>
-                    <span v-if="event.capacity">
-                      <el-icon><User /></el-icon>
-                      {{ event.registered || 0 }}/{{ event.capacity }}
-                    </span>
-                  </div>
-                  <div class="event-actions">
-                    <el-button
-                      type="danger"
-                      size="small"
-                      @click.stop="handleCancelRegistration(event.id)"
-                    >
-                      取消报名
-                    </el-button>
-                    <el-button
-                      type="primary"
-                      size="small"
-                      @click.stop="$router.push(`/event/${event.id}`)"
-                    >
-                      查看详情
-                    </el-button>
-                  </div>
                 </div>
-              </div>
-            </el-card>
+                <el-empty v-else :description="t('profile.noEvents')" />
+              </el-skeleton>
+            </div>
           </div>
-          <EmptyState
-            v-if="!registeredEventsLoading && registeredEvents.length === 0"
-            :text="$t('common.noData')"
-          />
         </el-tab-pane>
 
-        <el-tab-pane :label="$t('profile.settings')" name="settings">
-          <el-card class="settings-card">
-            <h3>{{ $t('profile.changePassword') }}</h3>
-            <el-form :model="passwordForm" label-width="120px" style="max-width: 500px">
-              <el-form-item label="当前密码">
-                <el-input v-model="passwordForm.oldPassword" type="password" show-password />
-              </el-form-item>
-              <el-form-item label="新密码">
-                <el-input v-model="passwordForm.newPassword" type="password" show-password />
-              </el-form-item>
-              <el-form-item label="确认密码">
-                <el-input v-model="passwordForm.confirmPassword" type="password" show-password />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="handleChangePassword"> 修改密码 </el-button>
-              </el-form-item>
-            </el-form>
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
-
-      <!-- 编辑帖子对话框 -->
-      <el-dialog v-model="showEditDialog" title="编辑帖子" width="800px">
-        <el-form :model="editForm" label-width="80px">
-          <el-form-item label="标题">
-            <el-input v-model="editForm.title" placeholder="请输入标题" />
-          </el-form-item>
-          <el-form-item label="内容">
-            <el-input
-              v-model="editForm.content"
-              type="textarea"
-              :rows="6"
-              placeholder="请输入内容"
-            />
-          </el-form-item>
-          <el-form-item label="图片">
-            <div class="image-upload-section">
-              <el-tabs v-model="imageUploadTab" class="image-upload-tabs">
-                <el-tab-pane label="本地上传" name="upload">
-                  <el-upload
-                    :file-list="uploadFileList"
-                    :action="''"
-                    :auto-upload="false"
-                    :on-change="handleFileChange"
-                    :on-remove="handleFileRemove"
-                    list-type="picture-card"
-                    :limit="9"
-                    accept="image/*"
-                  >
-                    <el-icon><Plus /></el-icon>
-                  </el-upload>
-                  <div style="margin-top: 10px">
-                    <el-button
-                      type="primary"
-                      size="small"
-                      :loading="uploading"
-                      @click="handleUploadImages"
-                    >
-                      上传图片
-                    </el-button>
-                  </div>
-                </el-tab-pane>
-                <el-tab-pane label="URL添加" name="url">
-                  <div class="url-input-section">
-                    <el-input
-                      v-model="imageUrlInput"
-                      placeholder="输入图片URL，按回车添加"
-                      @keyup.enter="addImageUrl"
-                    >
-                      <template #append>
-                        <el-button @click="addImageUrl">添加</el-button>
-                      </template>
-                    </el-input>
-                  </div>
-                </el-tab-pane>
-              </el-tabs>
-              <div v-if="editForm.images && editForm.images.length > 0" class="image-preview-list">
-                <div v-for="(img, index) in editForm.images" :key="index" class="image-preview-item">
-                  <el-image :src="img" fit="cover" class="preview-image" />
-                  <el-button
-                    type="danger"
-                    size="small"
-                    circle
-                    class="remove-image-btn"
-                    @click="removeImage(index)"
-                  >
-                    <el-icon><Close /></el-icon>
+        <el-tab-pane :label="t('profile.favoritesTab')" name="favorites">
+          <div class="favorites-toolbar">
+            <el-radio-group v-model="favoriteFilter" size="small">
+              <el-radio-button
+                v-for="option in favoriteFilterOptions"
+                :key="option.value"
+                :label="option.value"
+              >
+                {{ option.label }}
+              </el-radio-button>
+            </el-radio-group>
+            <span class="favorites-count">
+              {{ t('profile.favoritesCount', { count: filteredFavorites.length }) }}
+            </span>
+          </div>
+          <el-skeleton :loading="loading.favorites" animated>
+            <div v-if="filteredFavorites.length" class="favorites-grid">
+              <el-card
+                v-for="fav in filteredFavorites"
+                :key="fav.id"
+                class="favorite-card"
+                shadow="never"
+              >
+                <div class="favorite-thumb" :style="{ backgroundImage: `url(${fav.cover})` }" />
+                <div class="favorite-body">
+                  <p class="fav-title">{{ fav.title }}</p>
+                  <p class="fav-meta">
+                    {{ fav.region }} · {{ favoriteTypeLabel(fav.type) }}
+                  </p>
+                  <el-button text type="primary" @click="goToResource(fav)">
+                    {{ t('profile.viewDetail') }}
                   </el-button>
                 </div>
+              </el-card>
+            </div>
+            <el-empty v-else :description="t('profile.noFavorites')" />
+          </el-skeleton>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('profile.settingsTab')" name="settings">
+          <div class="settings-grid">
+            <el-form label-position="top" :model="editForm" class="settings-form">
+              <el-form-item :label="t('profile.nickname')">
+                <el-input v-model="editForm.nickname" />
+              </el-form-item>
+              <el-form-item :label="t('profile.bio')">
+                <el-input v-model="editForm.bio" type="textarea" :rows="3" />
+              </el-form-item>
+              <el-form-item :label="t('profile.phone')">
+                <el-input v-model="editForm.phone" />
+              </el-form-item>
+              <div class="form-actions">
+                <el-button type="primary" :loading="loading.save" @click="saveProfile">
+                  {{ t('profile.saveChanges') }}
+                </el-button>
+                <el-button @click="resetEditForm">{{ t('profile.cancel') }}</el-button>
               </div>
+            </el-form>
+
+            <div class="safety-card">
+              <h4>{{ t('profile.accountSecurity') }}</h4>
+              <p>{{ t('profile.securityHint') }}</p>
+              <el-button text type="primary" @click="goChangePassword">
+                {{ t('profile.changePassword') }}
+              </el-button>
+              <el-divider />
+              <h4>{{ t('profile.deleteAccount') }}</h4>
+              <p>{{ t('profile.deleteHint') }}</p>
+              <el-button type="danger" plain @click="confirmDelete">
+                {{ t('profile.delete') }}
+              </el-button>
             </div>
-          </el-form-item>
-          <el-form-item label="标签">
-            <el-input
-              v-model="tagInput"
-              placeholder="输入标签，用逗号分隔，按回车添加"
-              @keyup.enter="addTags"
-            />
-            <div v-if="editForm.tags && editForm.tags.length > 0" class="tags-display">
-              <el-tag
-                v-for="(tag, index) in editForm.tags"
-                :key="index"
-                closable
-                style="margin-right: 8px; margin-top: 8px"
-                @close="removeTag(index)"
-              >
-                {{ tag }}
-              </el-tag>
-            </div>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="showEditDialog = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="handleUpdatePost">保存</el-button>
-        </template>
-      </el-dialog>
-    </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </el-card>
+
+    <el-dialog v-model="editDialog" width="520px">
+      <template #header>
+        <span>{{ t('profile.editProfile') }}</span>
+      </template>
+      <el-form label-position="top" :model="editForm">
+        <el-form-item :label="t('profile.nickname')">
+          <el-input v-model="editForm.nickname" />
+        </el-form-item>
+        <el-form-item :label="t('profile.bio')">
+          <el-input v-model="editForm.bio" type="textarea" :rows="3" />
+        </el-form-item>
+        <el-form-item :label="t('profile.phone')">
+          <el-input v-model="editForm.phone" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialog = false">{{ t('profile.cancel') }}</el-button>
+        <el-button type="primary" :loading="loading.save" @click="saveProfile">
+          {{ t('profile.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
-import { useUserStore } from '@/store/user'
-import { getFavorites } from '@/api/culture'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
 import {
-  getMyPosts,
-  getLikedPosts,
-  getCommentedPosts,
-  getFavoritePosts,
-  updatePost,
-  deletePost,
-  uploadImage,
-} from '@/api/community'
-import { changePassword } from '@/api/user'
-import { getMyRegisteredEvents, cancelEventRegistration } from '@/api/event'
-import type { CultureResource } from '@/types/culture'
+  ArrowRight,
+} from '@element-plus/icons-vue'
+import {
+  ElMessage,
+  ElMessageBox,
+  type UploadProps,
+  type UploadRequestOptions,
+} from 'element-plus'
+import { useUserStore } from '@/store/user'
+import { getMyPosts } from '@/api/community'
+import { getFavorites } from '@/api/culture'
+import { getMyRegisteredEvents } from '@/api/event'
 import type { CommunityPost } from '@/types/community'
+import type { CultureResource } from '@/types/culture'
 import type { Event } from '@/types/event'
-import type { UploadFile, UploadFiles } from 'element-plus'
-import CultureCard from '@/components/common/CultureCard.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
-import { fromNow, formatDate } from '@/utils'
-import { Star, ChatLineRound, View, Edit, Delete, Plus, Close, Calendar, Location, User } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import request from '@/utils/axios'
+import ScenicHero from '@/components/profile/ScenicHero.vue'
+import GalleryCarousel, { type GalleryItem } from '@/components/profile/GalleryCarousel.vue'
+import MiniEventsCalendar, { type CalendarPreview } from '@/components/profile/MiniEventsCalendar.vue'
+import type { UserBadge } from '@/types/user'
 
+dayjs.extend(relativeTime)
+
+const router = useRouter()
+const { t, locale } = useI18n()
 const userStore = useUserStore()
-const activeTab = ref('info')
-const favoriteSubTab = ref('culture')
-const interactionSubTab = ref('liked')
-const favorites = ref<CultureResource[]>([])
-const favoritesLoading = ref(false)
-const myPosts = ref<CommunityPost[]>([])
-const myPostsLoading = ref(false)
-const favoritePosts = ref<CommunityPost[]>([])
-const favoritePostsLoading = ref(false)
-const likedPosts = ref<CommunityPost[]>([])
-const likedPostsLoading = ref(false)
-const commentedPosts = ref<CommunityPost[]>([])
-const commentedPostsLoading = ref(false)
-const registeredEvents = ref<Event[]>([])
-const registeredEventsLoading = ref(false)
-const passwordForm = ref({
-  oldPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-})
-const showEditDialog = ref(false)
-const editingPost = ref<CommunityPost | null>(null)
-const submitting = ref(false)
-const editForm = ref({
-  title: '',
-  content: '',
-  images: [] as string[],
-  tags: [] as string[],
-})
-const tagInput = ref('')
-const imageUploadTab = ref('upload')
-const uploadFileList = ref<UploadFiles>([])
-const imageUrlInput = ref('')
-const uploading = ref(false)
 
-const userInfo = computed(() => userStore.userInfo || {})
+const activeTab = ref('activity')
+const editDialog = ref(false)
+const avatarUploading = ref(false)
+const pageLoading = ref(false)
 
-const handleAvatarSuccess = (response: any) => {
-  if (userStore.userInfo) {
-    userStore.userInfo.avatar = response.url
+const posts = reactive<{ list: CommunityPost[]; total: number }>({ list: [], total: 0 })
+const favorites = reactive<{ list: CultureResource[]; total: number }>({ list: [], total: 0 })
+const favoriteFilter = ref<'all' | 'article' | 'exhibit' | 'video' | 'audio'>('all')
+const events = reactive<{ list: Event[]; total: number }>({ list: [], total: 0 })
+
+const loading = reactive({
+  posts: false,
+  favorites: false,
+  events: false,
+  save: false,
+})
+
+const editForm = reactive({
+  nickname: '',
+  bio: '',
+  phone: '',
+})
+
+const userInfo = computed(() => userStore.userInfo)
+
+const displayName = computed(() => {
+  return (
+    userInfo.value?.nickname ||
+    userInfo.value?.username ||
+    t('profile.anonymous')
+  )
+})
+
+const initials = computed(() => {
+  if (!displayName.value) return ''
+  return displayName.value.slice(0, 2).toUpperCase()
+})
+
+const joinDate = computed(() => {
+  if (!userInfo.value?.createdAt) return '--'
+  return dayjs(userInfo.value.createdAt).format('YYYY.MM.DD')
+})
+
+const daysSinceJoin = computed(() => {
+  if (!userInfo.value?.createdAt) return 0
+  return Math.max(dayjs().diff(dayjs(userInfo.value.createdAt), 'day'), 0)
+})
+
+const profileCompletion = computed(() => {
+  const fields = ['avatar', 'nickname', 'bio', 'phone'] as const
+  const filled = fields.reduce((count, field) => {
+    return count + (userInfo.value?.[field] ? 1 : 0)
+  }, 0)
+  return Math.round((filled / fields.length) * 100)
+})
+
+const highlightStats = computed(() => [
+  { key: 'posts', label: t('profile.statPosts'), value: posts.total },
+  { key: 'favorites', label: t('profile.statFavorites'), value: favorites.total },
+  { key: 'events', label: t('profile.statEvents'), value: events.total },
+])
+
+const membershipTier = computed(() => {
+  const score = posts.total * 2 + favorites.total + events.total * 3
+  if (score >= 30) return t('profile.tierGuardian')
+  if (score >= 12) return t('profile.tierExplorer')
+  return t('profile.tierNewcomer')
+})
+
+const heroCover = computed(() => {
+  if (userInfo.value?.cover) return userInfo.value.cover
+  if (userInfo.value?.gallery?.length) return userInfo.value.gallery[0] ?? ''
+  if (favorites.list.length) return favorites.list[0].cover
+  if (events.list.length) return events.list[0].cover
+  return ''
+})
+
+const heroBadges = computed<UserBadge[]>(() => {
+  if (userInfo.value?.badges?.length) {
+    return userInfo.value.badges
+  }
+  return [
+    { id: 'story', label: t('profile.badgeStoryteller') },
+    { id: 'explorer', label: t('profile.badgeExplorer') },
+    { id: 'guardian', label: t('profile.badgeCultureKeeper') },
+  ]
+})
+
+const quickActions = computed(() => [
+  {
+    key: 'community',
+    title: t('profile.quickPost'),
+    desc: t('profile.quickPostDesc'),
+    action: () => router.push({ name: 'Community' }),
+  },
+  {
+    key: 'events',
+    title: t('profile.quickEvent'),
+    desc: t('profile.quickEventDesc'),
+    action: () => router.push({ name: 'Events' }),
+  },
+  {
+    key: 'routes',
+    title: t('profile.quickRoute'),
+    desc: t('profile.quickRouteDesc'),
+    action: () => router.push({ name: 'Routes' }),
+  },
+  {
+    key: 'search',
+    title: t('profile.quickExplore'),
+    desc: t('profile.quickExploreDesc'),
+    action: () => router.push({ name: 'Search' }),
+  },
+])
+
+const formatRelative = (date?: string) => {
+  if (!date) return '--'
+  const currLocale = locale.value === 'zh' ? 'zh-cn' : 'en'
+  dayjs.locale(currLocale)
+  return dayjs(date).fromNow()
+}
+
+const statusLabel = (status?: string) => {
+  if (!status) return '--'
+  const normalized = status.toLowerCase()
+  return (
+    {
+      upcoming: t('profile.eventUpcoming'),
+      ongoing: t('profile.eventOngoing'),
+      past: t('profile.eventPast'),
+    }[normalized] || status
+  )
+}
+
+const statusType = (status?: string) => {
+  const normalized = status?.toLowerCase()
+  return (
+    {
+      upcoming: 'info',
+      ongoing: 'success',
+      past: 'warning',
+    }[normalized ?? ''] || 'info'
+  )
+}
+
+const buildEventRange = (event: Event) => {
+  const start = dayjs(event.startDate).format('MM.DD')
+  const end = dayjs(event.endDate ?? event.startDate).format('MM.DD')
+  return `${start} - ${end}`
+}
+
+const favoriteTypeLabel = (type: string) => {
+  const normalized = (type || '').toLowerCase()
+  return (
+    {
+      article: t('profile.resourceArticle'),
+      exhibit: t('profile.resourceExhibit'),
+      video: t('profile.resourceVideo'),
+      audio: t('profile.resourceAudio'),
+    }[normalized as 'article' | 'exhibit' | 'video' | 'audio'] || type
+  )
+}
+
+const favoriteFilterOptions = computed(() => [
+  { label: t('profile.favoriteFilterAll'), value: 'all' },
+  { label: t('profile.favoriteFilterArticle'), value: 'article' },
+  { label: t('profile.favoriteFilterExhibit'), value: 'exhibit' },
+  { label: t('profile.favoriteFilterVideo'), value: 'video' },
+  { label: t('profile.favoriteFilterAudio'), value: 'audio' },
+])
+
+const filteredFavorites = computed(() => {
+  if (favoriteFilter.value === 'all') {
+    return favorites.list
+  }
+  return favorites.list.filter(
+    item => (item.type || '').toLowerCase() === favoriteFilter.value,
+  )
+})
+
+const galleryItems = computed<GalleryItem[]>(() => {
+  const gallery = userInfo.value?.gallery ?? []
+  if (gallery.length) {
+    return gallery.map((url, index) => ({
+      id: `gallery-${index}`,
+      title: t('profile.galleryItemLabel', { index: index + 1 }),
+      cover: url,
+      description: userInfo.value?.bio ?? '',
+    }))
+  }
+  return favorites.list.slice(0, 6).map(item => ({
+    id: `favorite-${item.id}`,
+    title: item.title,
+    cover: item.cover,
+    description: `${item.region} · ${favoriteTypeLabel(item.type)}`,
+  }))
+})
+
+const calendarPreview = computed<CalendarPreview[]>(() => {
+  const baseEvents: Event[] = events.list.length
+    ? events.list
+    : userInfo.value?.registeredEvents ?? []
+  return baseEvents.slice(0, 4).map(event => ({
+    id: event.id,
+    title: event.title,
+    dateRange: buildEventRange(event),
+    statusLabel: statusLabel(event.status),
+    statusType: statusType(event.status),
+    location: event.location?.name ?? event.location?.address ?? '',
+  }))
+})
+
+const beforeAvatarUpload: UploadProps['beforeUpload'] = file => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isImage) {
+    ElMessage.error(t('profile.avatarImageOnly'))
+  }
+  if (!isLt2M) {
+    ElMessage.error(t('profile.avatarSizeLimit'))
+  }
+  return isImage && isLt2M
+}
+
+const handleAvatarUpload = async ({ file }: UploadRequestOptions) => {
+  if (!(file instanceof File)) return
+  avatarUploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const result = await request.post<{ url: string }>(
+      '/admin/culture/upload',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    )
+    if (result?.url) {
+      await userStore.updateUser({ avatar: result.url })
+      ElMessage.success(t('profile.avatarUpdated'))
+    }
+  } finally {
+    avatarUploading.value = false
   }
 }
 
-const handleSave = async () => {
+const saveProfile = async () => {
+  loading.save = true
   try {
-    await userStore.updateUser(userInfo.value)
-    ElMessage.success('保存成功')
-  } catch (error) {
-    ElMessage.error('保存失败')
+    await userStore.updateUser({
+      nickname: editForm.nickname,
+      bio: editForm.bio,
+      phone: editForm.phone,
+    })
+    ElMessage.success(t('profile.saved'))
+    editDialog.value = false
+  } finally {
+    loading.save = false
   }
 }
 
-const handleChangePassword = async () => {
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    ElMessage.error('两次密码不一致')
-    return
-  }
+const resetEditForm = () => {
+  if (!userInfo.value) return
+  editForm.nickname = userInfo.value.nickname ?? ''
+  editForm.bio = userInfo.value.bio ?? ''
+  editForm.phone = userInfo.value.phone ?? ''
+}
+
+const openEditProfile = () => {
+  editDialog.value = true
+}
+
+const confirmDelete = () => {
+  ElMessageBox.confirm(t('profile.deleteWarning'), t('profile.deleteAccount'), {
+    confirmButtonText: t('profile.delete'),
+    cancelButtonText: t('profile.cancel'),
+    type: 'warning',
+  })
+    .then(() => {
+      ElMessage.info(t('profile.pendingFeature'))
+    })
+    .catch(() => {})
+}
+
+const goChangePassword = () => {
+  router.push({ name: 'Profile', query: { tab: 'settings' } })
+  ElMessage.info(t('profile.pendingFeature'))
+}
+
+const goToResource = (resource: CultureResource) => {
+  router.push(`/detail/${resource.type}/${resource.id}`)
+}
+
+const refreshAll = async () => {
+  pageLoading.value = true
+  await Promise.all([loadPosts(), loadFavorites(), loadEvents()])
+  pageLoading.value = false
+}
+
+const loadPosts = async () => {
+  loading.posts = true
   try {
-    await changePassword(passwordForm.value.oldPassword, passwordForm.value.newPassword)
-    ElMessage.success('密码修改成功')
-    passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
-  } catch (error) {
-    ElMessage.error('密码修改失败')
+    const res = await getMyPosts({ page: 1, size: 5 })
+    posts.list = res.list ?? []
+    posts.total = res.total ?? posts.list.length
+  } finally {
+    loading.posts = false
   }
 }
 
 const loadFavorites = async () => {
-  favoritesLoading.value = true
+  loading.favorites = true
   try {
-    const response = await getFavorites({ page: 1, size: 20 })
-    favorites.value = response.list
-  } catch (error) {
-    console.error('Failed to load favorites:', error)
+    const res = await getFavorites({ page: 1, size: 8 })
+    favorites.list = res.list ?? []
+    favorites.total = res.total ?? favorites.list.length
   } finally {
-    favoritesLoading.value = false
+    loading.favorites = false
   }
 }
 
-const loadMyPosts = async () => {
-  myPostsLoading.value = true
+const loadEvents = async () => {
+  loading.events = true
   try {
-    const response = await getMyPosts({ page: 1, size: 20 })
-    myPosts.value = response.list || []
-  } catch (error) {
-    console.error('Failed to load posts:', error)
-    myPosts.value = []
+    const res = await getMyRegisteredEvents({ page: 1, size: 6 })
+    events.list = res.list ?? []
+    events.total = res.total ?? events.list.length
   } finally {
-    myPostsLoading.value = false
+    loading.events = false
   }
 }
 
-const loadFavoritePosts = async () => {
-  favoritePostsLoading.value = true
-  try {
-    const response = await getFavoritePosts({ page: 1, size: 20 })
-    favoritePosts.value = response.list || []
-  } catch (error) {
-    console.error('Failed to load favorite posts:', error)
-    favoritePosts.value = []
-  } finally {
-    favoritePostsLoading.value = false
-  }
-}
-
-const loadLikedPosts = async () => {
-  likedPostsLoading.value = true
-  try {
-    const response = await getLikedPosts({ page: 1, size: 20 })
-    likedPosts.value = response.list || []
-  } catch (error) {
-    console.error('Failed to load liked posts:', error)
-    likedPosts.value = []
-  } finally {
-    likedPostsLoading.value = false
-  }
-}
-
-const loadCommentedPosts = async () => {
-  commentedPostsLoading.value = true
-  try {
-    const response = await getCommentedPosts({ page: 1, size: 20 })
-    commentedPosts.value = response.list || []
-  } catch (error) {
-    console.error('Failed to load commented posts:', error)
-    commentedPosts.value = []
-  } finally {
-    commentedPostsLoading.value = false
-  }
-}
-
-const loadRegisteredEvents = async () => {
-  registeredEventsLoading.value = true
-  try {
-    const response = await getMyRegisteredEvents({ page: 1, size: 20 })
-    // 将后端返回的大写状态和类型转换为小写
-    registeredEvents.value = (response.list || []).map(event => ({
-      ...event,
-      status: event.status?.toLowerCase() as 'upcoming' | 'ongoing' | 'past',
-      type: event.type?.toLowerCase() as 'exhibition' | 'performance' | 'workshop' | 'tour',
-    }))
-  } catch (error) {
-    console.error('Failed to load registered events:', error)
-    registeredEvents.value = []
-  } finally {
-    registeredEventsLoading.value = false
-  }
-}
-
-const handleCancelRegistration = async (eventId: number) => {
-  try {
-    await ElMessageBox.confirm(
-      '确定要取消报名吗？此操作不可恢复。',
-      '取消报名确认',
-      {
-        confirmButtonText: '确定取消',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger',
-      }
-    )
-
-    try {
-      await cancelEventRegistration(eventId)
-      ElMessage.success('取消报名成功')
-      loadRegisteredEvents()
-    } catch (error) {
-      console.error('Failed to cancel registration:', error)
-      ElMessage.error('取消报名失败')
+watch(
+  () => userInfo.value,
+  info => {
+    if (info) {
+      resetEditForm()
     }
-  } catch (error) {
-    // 用户取消操作
-    if (error !== 'cancel') {
-      console.error('Cancel registration confirmation error:', error)
-    }
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  if (!userInfo.value) {
+    await userStore.initUser()
   }
-}
-
-const getEventStatusType = (status?: string) => {
-  switch (status) {
-    case 'upcoming':
-      return 'info'
-    case 'ongoing':
-      return 'success'
-    case 'past':
-      return 'info'
-    default:
-      return ''
-  }
-}
-
-const getEventStatusText = (status?: string) => {
-  switch (status) {
-    case 'upcoming':
-      return '即将开始'
-    case 'ongoing':
-      return '进行中'
-    case 'past':
-      return '已结束'
-    default:
-      return ''
-  }
-}
-
-const getPostStatusLabel = (status: string) => {
-  const labels: Record<string, string> = {
-    pending: '待审核',
-    approved: '已通过',
-    rejected: '已拒绝',
-  }
-  return labels[status] || status
-}
-
-const getPostStatusType = (status: string) => {
-  const types: Record<string, string> = {
-    pending: 'warning',
-    approved: 'success',
-    rejected: 'danger',
-  }
-  return types[status] || ''
-}
-
-watch(activeTab, (newTab) => {
-  if (newTab === 'favorites') {
-    if (favoriteSubTab.value === 'culture') {
-      loadFavorites()
-    } else {
-      loadFavoritePosts()
-    }
-  } else if (newTab === 'posts') {
-    loadMyPosts()
-  } else if (newTab === 'interactions') {
-    if (interactionSubTab.value === 'liked') {
-      loadLikedPosts()
-    } else {
-      loadCommentedPosts()
-    }
-  } else if (newTab === 'events') {
-    loadRegisteredEvents()
-  }
-})
-
-watch(favoriteSubTab, (newTab) => {
-  if (newTab === 'posts') {
-    loadFavoritePosts()
-  }
-})
-
-watch(interactionSubTab, (newTab) => {
-  if (newTab === 'liked') {
-    loadLikedPosts()
-  } else {
-    loadCommentedPosts()
-  }
-})
-
-const handleEditPost = (post: CommunityPost) => {
-  editingPost.value = post
-  editForm.value = {
-    title: post.title,
-    content: post.content,
-    images: post.images ? [...post.images] : [],
-    tags: post.tags ? [...post.tags] : [],
-  }
-  tagInput.value = ''
-  imageUrlInput.value = ''
-  uploadFileList.value = []
-  imageUploadTab.value = 'upload'
-  showEditDialog.value = true
-}
-
-const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
-  uploadFileList.value = fileList
-}
-
-const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
-  uploadFileList.value = fileList
-}
-
-const handleUploadImages = async () => {
-  if (uploadFileList.value.length === 0) {
-    ElMessage.warning('请先选择要上传的图片')
-    return
-  }
-
-  uploading.value = true
-  try {
-    const uploadPromises = uploadFileList.value.map(file => {
-      if (file.raw) {
-        return uploadImage(file.raw)
-      }
-      return Promise.resolve(null)
-    })
-
-    const results = await Promise.all(uploadPromises)
-    const uploadedUrls = results
-      .filter((result): result is { url: string; type: string } => result !== null)
-      .map(result => result.url)
-
-    editForm.value.images = [...editForm.value.images, ...uploadedUrls]
-    uploadFileList.value = []
-    ElMessage.success(`成功上传${uploadedUrls.length}张图片`)
-  } catch (error) {
-    console.error('Failed to upload images:', error)
-    ElMessage.error('图片上传失败')
-  } finally {
-    uploading.value = false
-  }
-}
-
-const addImageUrl = () => {
-  const url = imageUrlInput.value.trim()
-  if (!url) {
-    ElMessage.warning('请输入图片URL')
-    return
-  }
-
-  try {
-    new URL(url)
-    if (!editForm.value.images.includes(url)) {
-      editForm.value.images.push(url)
-      imageUrlInput.value = ''
-      ElMessage.success('图片URL已添加')
-    } else {
-      ElMessage.warning('该图片URL已存在')
-    }
-  } catch (error) {
-    ElMessage.error('请输入有效的图片URL')
-  }
-}
-
-const removeImage = (index: number) => {
-  editForm.value.images.splice(index, 1)
-}
-
-const addTags = () => {
-  if (tagInput.value.trim()) {
-    const tags = tagInput.value
-      .split(',')
-      .map(t => t.trim())
-      .filter(t => t)
-    editForm.value.tags = [...new Set([...editForm.value.tags, ...tags])]
-    tagInput.value = ''
-  }
-}
-
-const removeTag = (index: number) => {
-  editForm.value.tags.splice(index, 1)
-}
-
-const handleUpdatePost = async () => {
-  if (!editForm.value.title.trim()) {
-    ElMessage.warning('请输入标题')
-    return
-  }
-  if (!editForm.value.content.trim()) {
-    ElMessage.warning('请输入内容')
-    return
-  }
-
-  if (!editingPost.value) {
-    return
-  }
-
-  submitting.value = true
-  try {
-    await updatePost(editingPost.value.id, {
-      title: editForm.value.title,
-      content: editForm.value.content,
-      images: editForm.value.images,
-      tags: editForm.value.tags,
-    })
-    ElMessage.success('更新成功')
-    showEditDialog.value = false
-    loadMyPosts()
-  } catch (error) {
-    console.error('Failed to update post:', error)
-    ElMessage.error('更新失败')
-  } finally {
-    submitting.value = false
-  }
-}
-
-const handleDeletePost = async (post: CommunityPost) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除帖子 "${post.title}" 吗？此操作不可恢复。`,
-      '删除确认',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger',
-      }
-    )
-
-    try {
-      await deletePost(post.id)
-      ElMessage.success('删除成功')
-      loadMyPosts()
-    } catch (error) {
-      console.error('Failed to delete post:', error)
-      ElMessage.error('删除失败')
-    }
-  } catch (error) {
-    // 用户取消删除
-    if (error !== 'cancel') {
-      console.error('Delete confirmation error:', error)
-    }
-  }
-}
-
-onMounted(() => {
-  if (activeTab.value === 'favorites') {
-    if (favoriteSubTab.value === 'culture') {
-      loadFavorites()
-    } else {
-      loadFavoritePosts()
-    }
-  } else if (activeTab.value === 'posts') {
-    loadMyPosts()
-  } else if (activeTab.value === 'interactions') {
-    if (interactionSubTab.value === 'liked') {
-      loadLikedPosts()
-    } else {
-      loadCommentedPosts()
-    }
-  } else if (activeTab.value === 'events') {
-    loadRegisteredEvents()
-  }
+  await refreshAll()
 })
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
+:deep(.el-card__body) {
+  padding: 0;
+}
+
 .profile-page {
-  padding: 40px 0;
-  min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-    pointer-events: none;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: var(--bg-page);
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  position: relative;
-  z-index: 1;
+.profile-enhance-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
 }
 
-.profile-tabs {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-
-  :deep(.el-tabs__header) {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 0 20px;
-    margin: 0;
-    border-bottom: none;
-  }
-
-  :deep(.el-tabs__nav-wrap) {
-    &::after {
-      display: none;
-    }
-  }
-
-  :deep(.el-tabs__item) {
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
-    padding: 20px 24px;
-    transition: all 0.3s;
-
-    &:hover {
-      color: #fff;
-    }
-
-    &.is-active {
-      color: #fff;
-      font-weight: 600;
-    }
-  }
-
-  :deep(.el-tabs__active-bar) {
-    background-color: #fff;
-    height: 3px;
-  }
-
-  :deep(.el-tabs__content) {
-    padding: 30px 20px;
-    background: #fff;
-  }
-
-  :deep(.el-tab-pane) {
-    min-height: 400px;
-  }
+.quick-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
 }
 
-.info-card,
-.settings-card {
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-
-  &:hover {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  }
-
-  :deep(.el-card__body) {
-    padding: 30px;
-  }
+.quick-card {
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-base);
+  background: var(--bg-paper);
+  box-shadow: var(--card-shadow);
 }
 
-.avatar-uploader {
-  :deep(.el-upload) {
-    cursor: pointer;
-    border-radius: 50%;
-    overflow: hidden;
-    transition: all 0.3s;
-    border: 3px solid #e4e7ed;
+.quick-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
+}
 
-    &:hover {
-      transform: scale(1.05);
-      border-color: #409eff;
-      box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-    }
-  }
+.quick-card-inner {
+  padding: 20px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.quick-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quick-desc {
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.content-card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+}
+
+.content-card :deep(.el-card__body) {
+  padding: 28px;
+}
+
+.profile-tabs :deep(.el-tabs__header) {
+  margin-bottom: 24px;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.panel {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: #f3f6fb;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.list,
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.list-item,
+.timeline-item {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-paper);
+  box-shadow: 0 12px 28px rgba(15, 124, 143, 0.08);
+  transition: var(--transition-base);
+}
+
+.list-item:hover {
+  transform: translateX(6px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.item-time,
+.item-meta {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.favorites-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.favorites-count {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .favorites-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
 }
 
-.sub-tabs {
-  :deep(.el-tabs__content) {
-    padding: 20px 0;
-  }
+.favorite-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
 }
 
-.posts-list {
+.favorite-thumb {
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+}
+
+.favorite-body {
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-.post-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 12px;
-  border: 1px solid #e4e7ed;
-  overflow: hidden;
-  background: #fff;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    transform: scaleX(0);
-    transition: transform 0.3s;
-  }
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
-    border-color: #409eff;
-
-    &::before {
-      transform: scaleX(1);
-    }
-  }
-
-  :deep(.el-card__body) {
-    padding: 20px;
-  }
-}
-
-.post-header {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  align-items: center;
-  position: relative;
-}
-
-.post-author {
-  flex: 1;
-}
-
-.post-actions {
-  margin-left: auto;
-  display: flex;
   gap: 8px;
 }
 
-.author-name {
+.fav-title {
   font-weight: 600;
-  color: #303133;
-  font-size: 15px;
+  color: var(--text-primary);
 }
 
-.post-time {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
+.fav-meta {
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.post-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: #303133;
-  cursor: pointer;
-  transition: color 0.3s;
-  line-height: 1.4;
-
-  &:hover {
-    color: #409eff;
-  }
-}
-
-.post-content {
-  color: #606266;
-  line-height: 1.8;
-  margin-bottom: 16px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  cursor: pointer;
-  transition: color 0.3s;
-
-  &:hover {
-    color: #303133;
-  }
-}
-
-.post-images {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-
-  .post-image {
-    width: 140px;
-    height: 140px;
-    border-radius: 8px;
-    object-fit: cover;
-    cursor: pointer;
-    transition: transform 0.3s;
-
-    &:hover {
-      transform: scale(1.05);
-    }
-  }
-}
-
-.post-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 16px;
-  border-top: 1px solid #ebeef5;
-  margin-top: 8px;
-}
-
-.post-tags {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.post-meta {
-  display: flex;
-  gap: 20px;
-  font-size: 14px;
-  color: #909399;
-
-  span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: default;
-    transition: color 0.3s;
-
-    &:hover {
-      color: #409eff;
-    }
-  }
-}
-
-// 编辑对话框样式
-.image-upload-section {
-  width: 100%;
-}
-
-.image-upload-tabs {
-  margin-bottom: 16px;
-}
-
-.url-input-section {
-  margin-top: 10px;
-}
-
-.image-preview-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 24px;
   margin-top: 16px;
 }
 
-.image-preview-item {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #dcdfe6;
-
-  .preview-image {
-    width: 100%;
-    height: 100%;
-  }
-
-  .remove-image-btn {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    z-index: 10;
-  }
+.settings-form,
+.safety-card {
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  background: var(--bg-paper);
+  box-shadow: var(--card-shadow);
 }
 
-.tags-display {
-  margin-top: 12px;
-  min-height: 32px;
-}
-
-// 活动卡片样式
-.events-list {
+.form-actions {
+  margin-top: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
-.event-card {
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 12px;
-  border: 1px solid #e4e7ed;
-  overflow: hidden;
-  background: #fff;
+.safety-card h4 {
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
 
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    border-color: #409eff;
+.safety-card p {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+  .profile-enhance-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .profile-page {
+    padding: 16px;
   }
 
-  :deep(.el-card__body) {
+  .content-card :deep(.el-card__body),
+  .panel,
+  .settings-form,
+  .safety-card {
     padding: 20px;
   }
-}
 
-.event-content {
-  display: flex;
-  gap: 20px;
-}
-
-.event-image {
-  width: 250px;
-  height: 180px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-.event-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.event-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 12px;
-
-  h3 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #303133;
-    margin: 0;
-    flex: 1;
-    line-height: 1.4;
+  .favorites-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
-.event-description {
-  color: #606266;
-  line-height: 1.6;
-  margin-bottom: 16px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.event-meta {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: #909399;
-  flex-wrap: wrap;
-
-  span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+@media (max-width: 640px) {
+  .quick-cards {
+    grid-template-columns: 1fr;
   }
-}
 
-.event-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: auto;
+  .favorites-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
+
