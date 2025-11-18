@@ -28,7 +28,7 @@
           class="route-card card-shadow"
           @click="$router.push(`/route/${route.id}`)"
         >
-          <el-image :src="route.cover" fit="cover" class="route-cover" />
+          <el-image :src="route.cover || defaultRouteCover" fit="cover" class="route-cover" />
           <div class="route-content">
             <h3>{{ route.title }}</h3>
             <p>{{ route.description }}</p>
@@ -157,6 +157,7 @@ const activeTab = ref('silkRoad')
 const showGenerateDialog = ref(false)
 const generating = ref(false)
 const generateFormRef = ref<FormInstance>()
+const defaultRouteCover = '/api/digital-images/route.jpg'
 const generateForm = ref({
   startLocation: '',
   endLocation: '',

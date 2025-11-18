@@ -107,19 +107,141 @@
               <el-skeleton :loading="loading.events" animated>
                 <div v-if="events.list.length" class="timeline">
                   <div v-for="event in events.list" :key="event.id" class="timeline-item">
-                    <div>
-                      <p class="item-title">{{ event.title }}</p>
-                      <p class="item-meta">{{ buildEventRange(event) }}</p>
+                    <div class="timeline-info">
+                      <div>
+                        <p class="item-title">{{ event.title }}</p>
+                        <p class="item-meta">{{ buildEventRange(event) }}</p>
+                      </div>
+                      <div class="timeline-actions">
+                        <el-tag size="small" :type="statusType(event.status)">
+                          {{ statusLabel(event.status) }}
+                        </el-tag>
+                        <el-button
+                          v-if="canCancelEvent(event)"
+                          text
+                          type="danger"
+                          size="small"
+                          :loading="cancelingEventId === event.id"
+                          @click.stop="handleCancelEvent(event)"
+                        >
+                          {{ t('events.cancel') }}
+                        </el-button>
+                      </div>
                     </div>
-                    <el-tag size="small" :type="statusType(event.status)">
-                      {{ statusLabel(event.status) }}
-                    </el-tag>
                   </div>
                 </div>
                 <el-empty v-else :description="t('profile.noEvents')" />
               </el-skeleton>
             </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>{{ t('profile.myRoutes') }}</h3>
+                <el-button link @click="router.push({ name: 'Routes' })">
+                  {{ t('profile.viewAll') }}
+                </el-button>
+              </div>
+              <el-skeleton :loading="loading.routes" animated>
+                <div v-if="topRoutes.length" class="route-list">
+                  <div v-for="route in topRoutes" :key="route.id" class="route-item">
+                    <div class="route-thumb" :style="{ backgroundImage: `url(${route.cover})` }" />
+                    <div class="route-body">
+                      <p class="route-title">{{ route.title }}</p>
+                      <p class="route-meta">
+                        {{ route.duration }} {{ t('profile.routeDays') }} · {{ routeThemeLabel(route.theme) }}
+                      </p>
+                      <div class="route-actions">
+                        <el-button text type="primary" size="small" @click="goToRoute(route)">
+                          {{ t('profile.viewDetail') }}
+                        </el-button>
+                        <el-button
+                          text
+                          type="danger"
+                          size="small"
+                          :loading="deletingRouteId === route.id"
+                          @click.stop="confirmDeleteRoute(route)"
+                        >
+                          {{ t('common.delete') }}
+                        </el-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <el-empty v-else :description="t('profile.noRoutes')" />
+              </el-skeleton>
+            </div>
           </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('profile.commentsTab')" name="comments">
+          <el-skeleton :loading="loading.comments" animated>
+            <div v-if="myComments.list.length" class="comment-cards">
+              <div v-for="comment in myComments.list" :key="comment.id" class="comment-card">
+                <div class="comment-card-head">
+                  <div>
+                    <p class="post-title">{{ comment.postTitle }}</p>
+                    <p class="item-meta">{{ formatRelative(comment.createdAt) }}</p>
+                  </div>
+                  <div class="comment-actions">
+                    <template v-if="editingCommentId === comment.id">
+                      <el-button
+                        class="action-btn action-btn-success"
+                        size="small"
+                        :loading="commentSaving"
+                        :icon="Check"
+                        @click="saveCommentEdit"
+                      >
+                        {{ t('profile.commentSave') }}
+                      </el-button>
+                      <el-button
+                        class="action-btn action-btn-cancel"
+                        size="small"
+                        :icon="Close"
+                        @click="cancelEditComment"
+                      >
+                        {{ t('profile.commentCancelEdit') }}
+                      </el-button>
+                    </template>
+                    <template v-else>
+                      <el-button
+                        class="action-btn action-btn-edit"
+                        size="small"
+                        :icon="Edit"
+                        @click="startEditComment(comment)"
+                      >
+                        {{ t('profile.commentEdit') }}
+                      </el-button>
+                      <el-button
+                        class="action-btn action-btn-delete"
+                        size="small"
+                        :icon="Delete"
+                        :loading="deletingCommentId === comment.id"
+                        @click="confirmDeleteComment(comment)"
+                      >
+                        {{ t('profile.commentDelete') }}
+                      </el-button>
+                    </template>
+                  </div>
+                </div>
+                <div v-if="editingCommentId === comment.id" class="comment-editor">
+                  <el-input v-model="commentDraft" type="textarea" :rows="3" />
+                </div>
+                <p v-else class="comment-text">{{ comment.content }}</p>
+                <div class="comment-entry">
+                  <el-button
+                    class="view-detail-btn"
+                    type="primary"
+                    size="small"
+                    :icon="View"
+                    @click="router.push(`/community/post/${comment.postId}`)"
+                  >
+                    {{ t('profile.viewDetail') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            <el-empty v-else :description="t('profile.noComments')" />
+          </el-skeleton>
         </el-tab-pane>
 
         <el-tab-pane :label="t('profile.favoritesTab')" name="favorites">
@@ -226,13 +348,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter, type LocationQueryValue } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
 import {
   ArrowRight,
+  Edit,
+  Delete,
+  Check,
+  Close,
+  View,
 } from '@element-plus/icons-vue'
 import {
   ElMessage,
@@ -241,12 +368,14 @@ import {
   type UploadRequestOptions,
 } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { getMyPosts } from '@/api/community'
+import { deleteMyComment, getMyComments, getMyPosts, updateMyComment } from '@/api/community'
 import { getFavorites } from '@/api/culture'
-import { getMyRegisteredEvents } from '@/api/event'
-import type { CommunityPost } from '@/types/community'
+import { cancelEventRegistration, getMyRegisteredEvents } from '@/api/event'
+import { getMyRoutes, deleteMyRoute } from '@/api/route'
+import type { CommunityPost, MyComment } from '@/types/community'
 import type { CultureResource } from '@/types/culture'
 import type { Event } from '@/types/event'
+import type { Route } from '@/types/route'
 import request from '@/utils/axios'
 import ScenicHero from '@/components/profile/ScenicHero.vue'
 import GalleryCarousel, { type GalleryItem } from '@/components/profile/GalleryCarousel.vue'
@@ -256,10 +385,44 @@ import type { UserBadge } from '@/types/user'
 dayjs.extend(relativeTime)
 
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 const userStore = useUserStore()
 
 const activeTab = ref('activity')
+const commentsInitialized = ref(false)
+const TAB_KEYS = ['activity', 'comments', 'favorites', 'settings'] as const
+
+const syncTabFromQuery = (tab?: LocationQueryValue | LocationQueryValue[]) => {
+  if (typeof tab !== 'string') return
+  if (!TAB_KEYS.includes(tab as (typeof TAB_KEYS)[number])) return
+  if (activeTab.value !== tab) {
+    activeTab.value = tab
+  }
+}
+
+watch(
+  () => route.query.tab,
+  tab => {
+    syncTabFromQuery(tab)
+  },
+  { immediate: true },
+)
+
+watch(activeTab, tab => {
+  const nextQuery = { ...route.query }
+  if (tab === 'activity') {
+    delete nextQuery.tab
+  } else {
+    nextQuery.tab = tab
+  }
+  if (route.query.tab !== nextQuery.tab) {
+    router.replace({ query: nextQuery })
+  }
+  if (tab === 'comments' && !commentsInitialized.value && !loading.comments) {
+    loadMyComments()
+  }
+})
 const editDialog = ref(false)
 const avatarUploading = ref(false)
 const pageLoading = ref(false)
@@ -268,11 +431,15 @@ const posts = reactive<{ list: CommunityPost[]; total: number }>({ list: [], tot
 const favorites = reactive<{ list: CultureResource[]; total: number }>({ list: [], total: 0 })
 const favoriteFilter = ref<'all' | 'article' | 'exhibit' | 'video' | 'audio'>('all')
 const events = reactive<{ list: Event[]; total: number }>({ list: [], total: 0 })
+const routes = reactive<{ list: Route[]; total: number }>({ list: [], total: 0 })
+const myComments = reactive<{ list: MyComment[]; total: number }>({ list: [], total: 0 })
 
 const loading = reactive({
   posts: false,
   favorites: false,
   events: false,
+  routes: false,
+  comments: false,
   save: false,
 })
 
@@ -281,6 +448,13 @@ const editForm = reactive({
   bio: '',
   phone: '',
 })
+
+const editingCommentId = ref<number | null>(null)
+const commentDraft = ref('')
+const commentSaving = ref(false)
+const deletingCommentId = ref<number | null>(null)
+const cancelingEventId = ref<number | null>(null)
+const deletingRouteId = ref<number | null>(null)
 
 const userInfo = computed(() => userStore.userInfo)
 
@@ -318,6 +492,7 @@ const profileCompletion = computed(() => {
 const highlightStats = computed(() => [
   { key: 'posts', label: t('profile.statPosts'), value: posts.total },
   { key: 'favorites', label: t('profile.statFavorites'), value: favorites.total },
+  { key: 'routes', label: t('profile.myRoutes'), value: routes.total },
   { key: 'events', label: t('profile.statEvents'), value: events.total },
 ])
 
@@ -404,6 +579,13 @@ const statusType = (status?: string): CalendarPreview['statusType'] => {
   return statusTypeMap[normalized ?? ''] ?? 'info'
 }
 
+const isActiveEvent = (event?: Event) => {
+  if (!event?.status) return true
+  return event.status.toLowerCase() !== 'past'
+}
+
+const canCancelEvent = (event: Event) => isActiveEvent(event)
+
 const buildEventRange = (event: Event) => {
   const start = dayjs(event.startDate).format('MM.DD')
   const end = dayjs(event.endDate ?? event.startDate).format('MM.DD')
@@ -457,18 +639,22 @@ const galleryItems = computed<GalleryItem[]>(() => {
   }))
 })
 
+const topRoutes = computed(() => routes.list.slice(0, 3))
+
 const calendarPreview = computed((): CalendarPreview[] => {
-  const baseEvents: Event[] = events.list.length
-    ? events.list
-    : userInfo.value?.registeredEvents ?? []
-  return baseEvents.slice(0, 4).map(event => ({
+  const fallbackEvents = (userInfo.value?.registeredEvents ?? []).filter(isActiveEvent)
+  const baseEvents: Event[] = events.list.length ? events.list : fallbackEvents
+  return baseEvents
+    .filter(isActiveEvent)
+    .slice(0, 4)
+    .map(event => ({
     id: event.id,
     title: event.title,
     dateRange: buildEventRange(event),
     statusLabel: statusLabel(event.status),
     statusType: statusType(event.status),
     location: event.location?.name ?? event.location?.address ?? '',
-  }))
+    }))
 })
 
 const beforeAvatarUpload: UploadProps['beforeUpload'] = file => {
@@ -552,9 +738,140 @@ const goToResource = (resource: CultureResource) => {
   router.push(`/detail/${resource.type}/${resource.id}`)
 }
 
+const goToRoute = (route: Route) => {
+  router.push({ name: 'RouteDetail', params: { id: route.id } })
+}
+
+const routeThemeLabel = (theme?: string | null) => {
+  if (!theme) return '--'
+  const themeMap: Record<string, string> = {
+    silksroad: t('routes.themes.silkRoad'),
+    silkroad: t('routes.themes.silkRoad'),
+    nature: t('routes.themes.nature'),
+    culture: t('routes.themes.culture'),
+    food: t('routes.themes.food'),
+  }
+  return theme
+    .split(/[，,]/)
+    .map(item => {
+      const key = item.trim()
+      const mapped = themeMap[key.toLowerCase()]
+      return mapped || key
+    })
+    .filter(Boolean)
+    .join(' · ')
+}
+
+const startEditComment = (comment: MyComment) => {
+  editingCommentId.value = comment.id
+  commentDraft.value = comment.content
+}
+
+const cancelEditComment = () => {
+  editingCommentId.value = null
+  commentDraft.value = ''
+}
+
+const saveCommentEdit = async () => {
+  if (!editingCommentId.value) return
+  if (!commentDraft.value.trim()) {
+    ElMessage.warning(t('profile.commentRequired'))
+    return
+  }
+  commentSaving.value = true
+  try {
+    await updateMyComment(editingCommentId.value, commentDraft.value.trim())
+    ElMessage.success(t('profile.commentUpdated'))
+    cancelEditComment()
+    await loadMyComments()
+  } finally {
+    commentSaving.value = false
+  }
+}
+
+const confirmDeleteComment = (comment: MyComment) => {
+  ElMessageBox.confirm(t('profile.commentDeleteConfirm'), t('profile.commentDelete'), {
+    confirmButtonText: t('profile.commentDelete'),
+    cancelButtonText: t('profile.cancel'),
+    type: 'warning',
+  })
+    .then(async () => {
+      deletingCommentId.value = comment.id
+      try {
+        await deleteMyComment(comment.id)
+        ElMessage.success(t('profile.commentDeleted'))
+        if (editingCommentId.value === comment.id) {
+          cancelEditComment()
+        }
+        // 直接从列表中移除已删除的评论
+        const index = myComments.list.findIndex(c => c.id === comment.id)
+        if (index !== -1) {
+          myComments.list.splice(index, 1)
+          myComments.total = Math.max(0, myComments.total - 1)
+        }
+      } finally {
+        deletingCommentId.value = null
+      }
+    })
+    .catch(() => {})
+}
+
+const handleCancelEvent = (event: Event) => {
+  ElMessageBox.confirm(t('profile.cancelEventConfirm'), t('events.cancel'), {
+    confirmButtonText: t('events.cancel'),
+    cancelButtonText: t('profile.cancel'),
+    type: 'warning',
+  })
+    .then(async () => {
+      cancelingEventId.value = event.id
+      try {
+        await cancelEventRegistration(event.id)
+        ElMessage.success(t('profile.cancelEventSuccess'))
+        await loadEvents()
+      } finally {
+        cancelingEventId.value = null
+      }
+    })
+    .catch(() => {})
+}
+
+const confirmDeleteRoute = (route: Route) => {
+  ElMessageBox.confirm(
+    t('profile.deleteRouteConfirm', { title: route.title }),
+    t('profile.deleteRoute'),
+    {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      deletingRouteId.value = route.id
+      try {
+        await deleteMyRoute(route.id)
+        ElMessage.success(t('profile.deleteRouteSuccess'))
+        // 直接从列表中移除已删除的路线
+        const index = routes.list.findIndex(r => r.id === route.id)
+        if (index !== -1) {
+          routes.list.splice(index, 1)
+          routes.total = Math.max(0, routes.total - 1)
+        }
+      } finally {
+        deletingRouteId.value = null
+      }
+    })
+    .catch(() => {})
+}
+
 const refreshAll = async () => {
   pageLoading.value = true
-  await Promise.all([loadPosts(), loadFavorites(), loadEvents()])
+  await Promise.all([
+    loadPosts(),
+    loadFavorites(),
+    loadEvents(),
+    loadRoutes(),
+    loadMyComments(true),
+  ])
   pageLoading.value = false
 }
 
@@ -584,10 +901,50 @@ const loadEvents = async () => {
   loading.events = true
   try {
     const res = await getMyRegisteredEvents({ page: 1, size: 6 })
-    events.list = res.list ?? []
-    events.total = res.total ?? events.list.length
+    const filtered = (res.list ?? []).filter(isActiveEvent)
+    events.list = filtered
+    events.total = filtered.length
   } finally {
     loading.events = false
+  }
+}
+
+const loadRoutes = async () => {
+  loading.routes = true
+  try {
+    const res = (await getMyRoutes({ page: 1, size: 6 })) as {
+      list?: Route[]
+      total?: number
+    }
+    routes.list = res.list ?? []
+    routes.total = res.total ?? routes.list.length
+  } finally {
+    loading.routes = false
+  }
+}
+
+const loadMyComments = async (force = false) => {
+  if (loading.comments || (commentsInitialized.value && !force)) {
+    return
+  }
+  loading.comments = true
+  try {
+    const res = (await getMyComments({ page: 1, size: 10 })) as {
+      list?: MyComment[]
+      total?: number
+    }
+    myComments.list = res.list ?? []
+    myComments.total = res.total ?? myComments.list.length
+    commentsInitialized.value = true
+  } catch (error) {
+    console.error('[Profile] Failed to load comments', error)
+    myComments.list = []
+    myComments.total = 0
+    if (!force) {
+      commentsInitialized.value = false
+    }
+  } finally {
+    loading.comments = false
   }
 }
 
@@ -716,6 +1073,19 @@ onMounted(async () => {
   transition: var(--transition-base);
 }
 
+.timeline-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .list-item:hover {
   transform: translateX(6px);
   box-shadow: var(--card-shadow-hover);
@@ -774,6 +1144,173 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.route-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.route-item {
+  display: flex;
+  gap: 16px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-paper);
+  box-shadow: var(--card-shadow);
+}
+
+.route-thumb {
+  width: 96px;
+  height: 72px;
+  border-radius: var(--radius-md);
+  background-size: cover;
+  background-position: center;
+}
+
+.route-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.route-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.route-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.route-meta {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.comment-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.comment-card {
+  padding: 18px;
+  border-radius: var(--radius-md);
+  background: var(--bg-paper);
+  box-shadow: var(--card-shadow);
+}
+
+.comment-card .post-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comment-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.action-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.action-btn-edit {
+  color: #409eff;
+  border-color: #409eff;
+  background: rgba(64, 158, 255, 0.1);
+}
+
+.action-btn-edit:hover {
+  background: rgba(64, 158, 255, 0.15);
+  border-color: #66b1ff;
+  color: #66b1ff;
+}
+
+.action-btn-delete {
+  color: #f56c6c;
+  border-color: #f56c6c;
+  background: rgba(245, 108, 108, 0.1);
+}
+
+.action-btn-delete:hover {
+  background: rgba(245, 108, 108, 0.15);
+  border-color: #f78989;
+  color: #f78989;
+}
+
+.action-btn-success {
+  color: #67c23a;
+  border-color: #67c23a;
+  background: rgba(103, 194, 58, 0.1);
+}
+
+.action-btn-success:hover {
+  background: rgba(103, 194, 58, 0.15);
+  border-color: #85ce61;
+  color: #85ce61;
+}
+
+.action-btn-cancel {
+  color: #909399;
+  border-color: #909399;
+  background: rgba(144, 147, 153, 0.1);
+}
+
+.action-btn-cancel:hover {
+  background: rgba(144, 147, 153, 0.15);
+  border-color: #a6a9ad;
+  color: #a6a9ad;
+}
+
+.view-detail-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(64, 158, 255, 0.2);
+}
+
+.view-detail-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+.comment-editor {
+  margin-top: 12px;
+}
+
+.comment-text {
+  margin-top: 12px;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.comment-entry {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .fav-title {
@@ -856,4 +1393,6 @@ onMounted(async () => {
   }
 }
 </style>
+
+
 

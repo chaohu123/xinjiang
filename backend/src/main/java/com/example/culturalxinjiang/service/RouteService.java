@@ -11,15 +11,16 @@ import com.example.culturalxinjiang.repository.CultureResourceRepository;
 import com.example.culturalxinjiang.repository.RouteRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
 import com.example.culturalxinjiang.service.AIService.AIRouteResponse;
+import com.example.culturalxinjiang.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,12 @@ public class RouteService {
     private final CultureResourceRepository cultureResourceRepository;
     private final UserRepository userRepository;
     private final AIService aiService;
+
+    @Value("${app.routes.default-cover:/digital-images/route.jpg}")
+    private String defaultRouteCover;
+
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
 
     public PageResponse<RouteResponse> getRoutes(String theme, Integer page, Integer size) {
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -103,6 +110,8 @@ public class RouteService {
                 .favorites(0)
                 .user(user) // 关联当前用户
                 .build();
+
+        route.setCover(resolveRouteCover(route.getCover()));
 
         // 转换AI返回的行程安排为Route.ItineraryItem
         List<Route.ItineraryItem> itineraryItems = new ArrayList<>();
@@ -179,7 +188,7 @@ public class RouteService {
                 .id(route.getId())
                 .title(route.getTitle())
                 .description(route.getDescription())
-                .cover(route.getCover())
+                .cover(resolveRouteCover(route.getCover()))
                 .theme(route.getTheme())
                 .duration(route.getDuration())
                 .distance(route.getDistance())
@@ -197,7 +206,7 @@ public class RouteService {
         response.setId(route.getId());
         response.setTitle(route.getTitle());
         response.setDescription(route.getDescription());
-        response.setCover(route.getCover());
+        response.setCover(resolveRouteCover(route.getCover()));
         response.setTheme(route.getTheme());
         response.setDuration(route.getDuration());
         response.setDistance(route.getDistance());
@@ -266,12 +275,63 @@ public class RouteService {
         return response;
     }
 
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("用户未登录");
+    private String resolveRouteCover(String cover) {
+        String resolved = StringUtils.hasText(cover) ? cover : defaultRouteCover;
+
+        if (!StringUtils.hasText(resolved)) {
+            return defaultRouteCover;
         }
-        String username = authentication.getName();
+
+        if (isAbsoluteUrl(resolved)) {
+            return resolved;
+        }
+
+        String normalizedPath = resolved.startsWith("/") ? resolved : "/" + resolved;
+        String normalizedContextPath = normalizeContextPath();
+
+        if (StringUtils.hasText(normalizedContextPath)
+                && !normalizedPath.startsWith(normalizedContextPath + "/")
+                && !normalizedPath.equals(normalizedContextPath)) {
+            return normalizedContextPath + normalizedPath;
+        }
+
+        return normalizedPath;
+    }
+
+    private boolean isAbsoluteUrl(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String lowerCase = value.toLowerCase();
+        return lowerCase.startsWith("http://")
+                || lowerCase.startsWith("https://")
+                || lowerCase.startsWith("data:");
+    }
+
+    private String normalizeContextPath() {
+        if (!StringUtils.hasText(contextPath) || "/".equals(contextPath)) {
+            return "";
+        }
+        return contextPath.startsWith("/") ? contextPath : "/" + contextPath;
+    }
+
+    @Transactional
+    public void deleteMyRoute(Long id) {
+        User user = getCurrentUser();
+        Route route = routeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("路线不存在"));
+
+        // 验证路线是否属于当前用户
+        if (route.getUser() == null || !route.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("无权删除此路线");
+        }
+
+        routeRepository.delete(route);
+        log.info("路线已删除，ID={}, 标题={}", route.getId(), route.getTitle());
+    }
+
+    private User getCurrentUser() {
+        String username = SecurityUtils.getRequiredUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
     }

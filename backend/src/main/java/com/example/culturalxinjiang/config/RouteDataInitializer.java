@@ -52,9 +52,8 @@ public class RouteDataInitializer implements CommandLineRunner {
                 .user(null) // 示例路线没有创建者
                 .createdAt(LocalDateTime.now().minusDays(30))
                 .updatedAt(LocalDateTime.now().minusDays(30))
+                .tips(new ArrayList<>())
                 .build();
-        route1.setItinerary(new ArrayList<>());
-        route1.setTips(new ArrayList<>());
         sampleRoutes.add(route1);
 
         // 示例路线2：天山天池自然风光
@@ -73,9 +72,8 @@ public class RouteDataInitializer implements CommandLineRunner {
                 .user(null)
                 .createdAt(LocalDateTime.now().minusDays(25))
                 .updatedAt(LocalDateTime.now().minusDays(25))
+                .tips(new ArrayList<>())
                 .build();
-        route2.setItinerary(new ArrayList<>());
-        route2.setTips(new ArrayList<>());
         sampleRoutes.add(route2);
 
         // 示例路线3：维吾尔文化体验
@@ -94,9 +92,8 @@ public class RouteDataInitializer implements CommandLineRunner {
                 .user(null)
                 .createdAt(LocalDateTime.now().minusDays(20))
                 .updatedAt(LocalDateTime.now().minusDays(20))
+                .tips(new ArrayList<>())
                 .build();
-        route3.setItinerary(new ArrayList<>());
-        route3.setTips(new ArrayList<>());
         sampleRoutes.add(route3);
 
         // 示例路线4：新疆美食探索之旅
@@ -115,9 +112,8 @@ public class RouteDataInitializer implements CommandLineRunner {
                 .user(null)
                 .createdAt(LocalDateTime.now().minusDays(15))
                 .updatedAt(LocalDateTime.now().minusDays(15))
+                .tips(new ArrayList<>())
                 .build();
-        route4.setItinerary(new ArrayList<>());
-        route4.setTips(new ArrayList<>());
         sampleRoutes.add(route4);
 
         // 示例路线5：喀纳斯湖仙境之旅
@@ -136,9 +132,8 @@ public class RouteDataInitializer implements CommandLineRunner {
                 .user(null)
                 .createdAt(LocalDateTime.now().minusDays(10))
                 .updatedAt(LocalDateTime.now().minusDays(10))
+                .tips(new ArrayList<>())
                 .build();
-        route5.setItinerary(new ArrayList<>());
-        route5.setTips(new ArrayList<>());
         sampleRoutes.add(route5);
 
         // 示例路线6：吐鲁番火焰山探险
@@ -157,15 +152,101 @@ public class RouteDataInitializer implements CommandLineRunner {
                 .user(null)
                 .createdAt(LocalDateTime.now().minusDays(5))
                 .updatedAt(LocalDateTime.now().minusDays(5))
+                .tips(new ArrayList<>())
                 .build();
-        route6.setItinerary(new ArrayList<>());
-        route6.setTips(new ArrayList<>());
         sampleRoutes.add(route6);
+
+        // ========== 丝绸之路主题 - 第二条 ==========
+        // 示例路线7：古丝绸之路南道探秘
+        Route route7 = Route.builder()
+                .title("古丝绸之路南道探秘")
+                .description("沿着古丝绸之路南道，从和田出发，穿越塔克拉玛干沙漠边缘，探访千年古城遗址，感受丝路商旅的传奇历史。途经和田、于田、民丰，体验沙漠绿洲的独特魅力。")
+                .cover("https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=800")
+                .theme("silkRoad")
+                .duration(8)
+                .distance(900.0)
+                .startLocation("和田")
+                .endLocation("库尔勒")
+                .waypoints(18)
+                .views(1680)
+                .favorites(125)
+                .user(null)
+                .createdAt(LocalDateTime.now().minusDays(28))
+                .updatedAt(LocalDateTime.now().minusDays(28))
+                .tips(new ArrayList<>())
+                .build();
+        sampleRoutes.add(route7);
+
+        // ========== 文化体验主题 - 第二条 ==========
+        // 示例路线8：哈萨克族文化深度游
+        Route route8 = Route.builder()
+                .title("哈萨克族文化深度游")
+                .description("深入体验哈萨克族的游牧文化，观看传统赛马、叼羊比赛，品尝马奶酒和手抓肉，入住哈萨克毡房，感受草原民族的豪迈与热情。")
+                .cover("https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800")
+                .theme("culture")
+                .duration(4)
+                .distance(500.0)
+                .startLocation("伊犁")
+                .endLocation("那拉提")
+                .waypoints(10)
+                .views(1320)
+                .favorites(98)
+                .user(null)
+                .createdAt(LocalDateTime.now().minusDays(18))
+                .updatedAt(LocalDateTime.now().minusDays(18))
+                .tips(new ArrayList<>())
+                .build();
+        sampleRoutes.add(route8);
+
+        // ========== 美食之旅主题 - 第二条 ==========
+        // 示例路线9：南疆美食寻味之旅
+        Route route9 = Route.builder()
+                .title("南疆美食寻味之旅")
+                .description("从喀什出发，一路品尝南疆最地道的美食。烤包子、拉条子、抓饭、烤全羊、馕坑肉...每一站都是味蕾的盛宴，体验新疆美食的丰富多样和独特风味。")
+                .cover("https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800")
+                .theme("food")
+                .duration(5)
+                .distance(650.0)
+                .startLocation("喀什")
+                .endLocation("阿克苏")
+                .waypoints(12)
+                .views(1450)
+                .favorites(108)
+                .user(null)
+                .createdAt(LocalDateTime.now().minusDays(12))
+                .updatedAt(LocalDateTime.now().minusDays(12))
+                .tips(new ArrayList<>())
+                .build();
+        sampleRoutes.add(route9);
+
+        // ========== 自然风光主题 - 第四条（已有3条，再增加1条特色路线）==========
+        // 示例路线10：塔克拉玛干沙漠穿越
+        Route route10 = Route.builder()
+                .title("塔克拉玛干沙漠穿越")
+                .description("挑战中国最大的沙漠，体验沙漠越野的刺激，观赏壮观的沙漠日出日落，探访沙漠中的绿洲，感受大漠孤烟直的壮美景象。")
+                .cover("https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800")
+                .theme("nature")
+                .duration(5)
+                .distance(1200.0)
+                .startLocation("库尔勒")
+                .endLocation("和田")
+                .waypoints(16)
+                .views(1890)
+                .favorites(156)
+                .user(null)
+                .createdAt(LocalDateTime.now().minusDays(8))
+                .updatedAt(LocalDateTime.now().minusDays(8))
+                .tips(new ArrayList<>())
+                .build();
+        sampleRoutes.add(route10);
 
         routeRepository.saveAll(sampleRoutes);
         log.info("成功初始化 {} 条示例路线数据", sampleRoutes.size());
     }
 }
+
+
+
 
 
 

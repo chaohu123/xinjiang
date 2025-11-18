@@ -36,3 +36,14 @@ export interface Comment {
   createdAt: string
   replies?: Comment[]
 }
+
+export interface MyComment {
+  id: number
+  content: string
+  postId: number
+  postTitle: string
+  postCover?: string | null
+  postStatus?: string
+  createdAt: string
+  updatedAt: string
+}

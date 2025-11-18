@@ -94,6 +94,13 @@ management:
     health:
       show-details: when-authorized
 
+# 自定义应用配置
+app:
+  static:
+    digital-images-dir: ${DIGITAL_IMAGES_DIR:../digital-images}
+  routes:
+    default-cover: ${server.servlet.context-path:}/digital-images/route.jpg
+
 # AI Service Configuration
 # 支持 OpenAI 和 DeepSeek，优先使用 DeepSeek（更便宜且国内访问更稳定）
 # ⚠️ 注意：此文件中包含 API 密钥，请勿提交到公开的 Git 仓库

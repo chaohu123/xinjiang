@@ -4,9 +4,8 @@ import com.example.culturalxinjiang.dto.request.ChangePasswordRequest;
 import com.example.culturalxinjiang.dto.response.UserInfoResponse;
 import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.UserRepository;
+import com.example.culturalxinjiang.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +25,7 @@ public class UserService {
     @Transactional
     public UserInfoResponse updateUserInfo(UserInfoResponse request) {
         User user = getCurrentUser();
-        
+
         if (request.getNickname() != null) {
             user.setNickname(request.getNickname());
         }
@@ -57,8 +56,7 @@ public class UserService {
     }
 
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+        String username = SecurityUtils.getRequiredUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
     }

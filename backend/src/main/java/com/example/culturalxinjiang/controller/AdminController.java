@@ -10,6 +10,7 @@ import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.entity.HomeRecommendation;
 import com.example.culturalxinjiang.service.AdminService;
 import com.example.culturalxinjiang.service.HomeRecommendationService;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -296,12 +297,12 @@ public class AdminController {
 
     // ==================== 内部请求类 ====================
 
-    @lombok.Data
+    @Data
     public static class ToggleStatusRequest {
         private Boolean enabled;
     }
 
-    @lombok.Data
+    @Data
     public static class CultureResourceRequest {
         private CultureResource.CultureType type;
         private String typeString; // 支持字符串类型的 type（前端可能发送小写）
@@ -317,12 +318,12 @@ public class AdminController {
         private CultureResourceResponse.Location location;
     }
 
-    @lombok.Data
+    @Data
     public static class RejectPostRequest {
         private String reason;
     }
 
-    @lombok.Data
+    @Data
     public static class AddRecommendationRequest {
         private String type; // "FEATURED" or "HOT"
         private Long resourceId;
@@ -330,7 +331,7 @@ public class AdminController {
         private Integer displayOrder;
     }
 
-    @lombok.Data
+    @Data
     public static class UpdateRecommendationRequest {
         private Integer displayOrder;
         private Boolean enabled;

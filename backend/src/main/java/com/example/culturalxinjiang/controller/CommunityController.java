@@ -6,6 +6,7 @@ import com.example.culturalxinjiang.dto.request.UpdatePostRequest;
 import com.example.culturalxinjiang.dto.response.ApiResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostDetailResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
+import com.example.culturalxinjiang.dto.response.MyCommentResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.service.CommunityService;
 import jakarta.validation.Valid;
@@ -70,6 +71,27 @@ public class CommunityController {
     @PostMapping("/{id}/comments")
     public ApiResponse<Void> commentPost(@PathVariable Long id, @Valid @RequestBody CommentRequest request) {
         communityService.commentPost(id, request);
+        return ApiResponse.success(null);
+    }
+
+    @GetMapping("/comments/my")
+    public ApiResponse<PageResponse<MyCommentResponse>> getMyComments(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
+    ) {
+        PageResponse<MyCommentResponse> response = communityService.getMyComments(page, size);
+        return ApiResponse.success(response);
+    }
+
+    @PutMapping("/comments/{id}")
+    public ApiResponse<Void> updateComment(@PathVariable Long id, @Valid @RequestBody CommentRequest request) {
+        communityService.updateComment(id, request);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/comments/{id}")
+    public ApiResponse<Void> deleteComment(@PathVariable Long id) {
+        communityService.deleteComment(id);
         return ApiResponse.success(null);
     }
 

@@ -47,6 +47,12 @@ public class RouteController {
         PageResponse<RouteResponse> response = routeService.getMyRoutes(page, size);
         return ApiResponse.success(response);
     }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteMyRoute(@PathVariable Long id) {
+        routeService.deleteMyRoute(id);
+        return ApiResponse.success(null);
+    }
 }
 
 

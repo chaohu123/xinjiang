@@ -8,11 +8,17 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
+
+    @Value("${app.static.digital-images-dir:digital-images}")
+    private String digitalImagesDir;
 
     @Autowired
     private CultureTypeConverter cultureTypeConverter;
@@ -21,7 +27,13 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 配置静态资源访问路径
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadDir + "/");
+                .addResourceLocations(buildFileUri(uploadDir));
+
+        registry.addResourceHandler("/digital-images/**")
+                .addResourceLocations(buildFileUri(digitalImagesDir));
+
+        registry.addResourceHandler("/api/digital-images/**")
+            .addResourceLocations(buildFileUri(digitalImagesDir));
     }
 
     @Override
@@ -36,6 +48,12 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addFormatters(FormatterRegistry registry) {
         registry.addConverter(cultureTypeConverter);
+    }
+
+    private String buildFileUri(String directory) {
+        Path path = Paths.get(directory).toAbsolutePath();
+        String uri = path.toUri().toString();
+        return uri.endsWith("/") ? uri : uri + "/";
     }
 }
 

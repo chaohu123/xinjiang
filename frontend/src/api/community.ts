@@ -1,5 +1,5 @@
 import request from '@/utils/axios'
-import type { CommunityPost, CommunityPostDetail } from '@/types/community'
+import type { CommunityPost, CommunityPostDetail, MyComment } from '@/types/community'
 
 // 获取社区帖子列表
 export const getCommunityPosts = (params?: {
@@ -58,6 +58,23 @@ export const unlikePost = (id: number) => {
 // 评论帖子
 export const commentPost = (id: number, content: string) => {
   return request.post(`/community/posts/${id}/comments`, { content })
+}
+
+// 获取我的评论
+export const getMyComments = (params?: { page?: number; size?: number }) => {
+  return request.get<{ list: MyComment[]; total: number }>('/community/posts/comments/my', {
+    params,
+  })
+}
+
+// 更新评论
+export const updateMyComment = (id: number, content: string) => {
+  return request.put(`/community/posts/comments/${id}`, { content })
+}
+
+// 删除评论
+export const deleteMyComment = (id: number) => {
+  return request.delete(`/community/posts/comments/${id}`)
 }
 
 // 获取我的帖子

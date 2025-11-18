@@ -11,13 +11,15 @@
           :before-upload="beforeUpload"
           :disabled="avatarUploading"
         >
-          <el-avatar :size="116" :src="avatar" class="avatar">
-            {{ initials }}
-          </el-avatar>
-          <p class="upload-tip">
-            <el-icon><Edit /></el-icon>
-            <span>{{ t('profile.updateAvatar') }}</span>
-          </p>
+          <div class="avatar-wrapper">
+            <el-avatar :size="116" :src="avatar" class="avatar">
+              {{ initials }}
+            </el-avatar>
+            <div class="avatar-overlay">
+              <el-icon><Edit /></el-icon>
+              <span>{{ t('profile.updateAvatar') }}</span>
+            </div>
+          </div>
         </el-upload>
       </div>
 
@@ -240,10 +242,15 @@ const badgeOverflow = computed(() =>
 
 .avatar-uploader {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
+  justify-content: center;
   cursor: pointer;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .avatar {
@@ -251,12 +258,27 @@ const badgeOverflow = computed(() =>
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
 }
 
-.upload-tip {
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
-  gap: 6px;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  text-align: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
 }
 
 .scenic-hero__header {
@@ -316,6 +338,8 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: center;
+  text-align: center;
 }
 
 .stat-card .value {
@@ -413,5 +437,6 @@ h2 {
   }
 }
 </style>
+
 
 

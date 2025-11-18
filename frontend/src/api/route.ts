@@ -32,6 +32,11 @@ export const getMyRoutes = (params?: { page?: number; size?: number }) => {
   return request.get<{ list: Route[]; total: number }>('/routes/my', { params })
 }
 
+// 删除我的路线
+export const deleteMyRoute = (id: number) => {
+  return request.delete(`/routes/${id}`)
+}
+
 
 
 

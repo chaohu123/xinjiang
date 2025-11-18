@@ -33,20 +33,15 @@
           </div>
 
           <div class="detail-body">
-            <div v-if="resource.images && resource.images.length > 0" class="detail-images">
-              <ImageGallery :images="resource.images" />
-            </div>
-
-            <div v-if="resource.videoUrl" class="detail-video">
-              <VideoPlayer :src="resource.videoUrl" :poster="resource.cover" />
-            </div>
-
             <div class="detail-description">
               <h2>{{ $t('detail.overview') }}</h2>
               <p>{{ resource.description }}</p>
             </div>
 
-            <div v-if="resource.content" class="detail-content-text" v-html="resource.content" />
+            <div v-if="sanitizedContent" class="detail-content-text">
+              <h2>图文内容</h2>
+              <div class="detail-rich-text" v-html="sanitizedContent" />
+            </div>
 
             <div v-if="resource.location" class="detail-location">
               <h2>{{ $t('detail.location') }}</h2>
@@ -61,6 +56,22 @@
               <el-tag v-for="tag in resource.tags" :key="tag" size="large">
                 {{ tag }}
               </el-tag>
+            </div>
+
+            <div v-if="galleryImages.length > 0" class="detail-media-section">
+              <h2>图片展示</h2>
+              <div class="detail-images">
+                <ImageGallery :images="galleryImages" :item-height="galleryImageHeight" :columns="2" />
+              </div>
+            </div>
+
+            <div v-if="videoList.length > 0" class="detail-media-section">
+              <h2>视频展示</h2>
+              <div class="detail-media-grid">
+                <div v-for="(video, index) in videoList" :key="`${video}-${index}`" class="media-grid-item">
+                  <VideoPlayer :src="video" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -80,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getResourceDetail, favoriteResource, unfavoriteResource } from '@/api/culture'
 import type { CultureResource } from '@/types/culture'
@@ -100,6 +111,60 @@ const detailMapContainer = ref<HTMLElement>()
 const detailMap = ref<AMap.Map | null>(null)
 const detailMarker = ref<AMap.Marker | null>(null)
 const detailMapLoaded = ref(false)
+const galleryImageHeight = 320
+
+const sanitizedContent = computed(() => {
+  if (!resource.value?.content) return ''
+  return resource.value.content
+    .replace(/<figure[\s\S]*?>/gi, match => (/<img/i.test(match) ? '' : match))
+    .replace(/<img[\s\S]*?>/gi, '')
+    .replace(/<video[\s\S]*?<\/video>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\sloading=(?:"|')?lazy(?:"|')?/gi, '')
+    .replace(/\sdata-src=(?:"|')[^"']*(?:"|')/gi, '')
+})
+
+const galleryImages = computed(() => {
+  if (!resource.value) return []
+
+  const normalized =
+    Array.isArray(resource.value.images) && resource.value.images.length
+      ? resource.value.images
+          .map(img => img?.trim())
+          .filter((img): img is string => Boolean(img))
+      : []
+
+  const unique = Array.from(new Set(normalized))
+  const cover = resource.value.cover?.trim()
+
+  if (cover && !unique.includes(cover)) {
+    unique.unshift(cover)
+  }
+
+  if (!unique.length && cover) {
+    return [cover]
+  }
+
+  return unique
+})
+
+const videoList = computed(() => {
+  const raw = resource.value?.videoUrl as string | string[] | undefined
+  if (!raw) return []
+
+  if (Array.isArray(raw)) {
+    return raw.map(url => url?.trim()).filter((url): url is string => Boolean(url))
+  }
+
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map(url => url.trim())
+      .filter(url => !!url)
+  }
+
+  return []
+})
 
 const getTypeName = (type: string) => {
   // 将类型转换为小写以支持大小写不敏感的匹配
@@ -337,6 +402,72 @@ onUnmounted(() => {
   }
 }
 
+.detail-media-section {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 0;
+
+  h2 {
+    font-size: 24px;
+    margin-bottom: 16px;
+    color: #303133;
+  }
+}
+
+.detail-media-section + .detail-media-section {
+  border-top: 1px solid rgba(230, 230, 230, 0.6);
+}
+
+.detail-images {
+  border-radius: 16px;
+  overflow: hidden;
+
+  :deep(.image-gallery) {
+    width: 100%;
+    margin: 0 auto;
+    gap: 20px !important;
+  }
+
+  :deep(.gallery-image) {
+    min-height: 240px;
+    border-radius: 16px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+    border: 4px solid #fff;
+  }
+}
+
+.detail-media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.media-grid-item {
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+  min-height: 260px;
+
+  :deep(video),
+  :deep(.video-js) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .detail-media-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :deep(.image-gallery) {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}
+
 .detail-description,
 .detail-content-text {
   h2 {
@@ -350,6 +481,29 @@ onUnmounted(() => {
     color: #606266;
     font-size: 16px;
   }
+}
+
+.detail-content-text {
+  :deep(img),
+  :deep(video),
+  :deep(iframe) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 20px auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+
+  :deep(video) {
+    background: #000;
+  }
+}
+
+.detail-rich-text {
+  line-height: 1.8;
+  color: #606266;
+  font-size: 16px;
 }
 
 .detail-location {

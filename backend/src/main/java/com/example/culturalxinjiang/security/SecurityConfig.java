@@ -1,7 +1,10 @@
 package com.example.culturalxinjiang.security;
 
+import com.example.culturalxinjiang.security.PlainTextPasswordEncoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -9,10 +12,11 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.example.culturalxinjiang.security.PlainTextPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -56,7 +60,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(0)
+    public SecurityFilterChain staticResourceSecurityFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatcher("/digital-images/**", "/uploads/**", "/api/digital-images/**", "/api/uploads/**")
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
+                .requestCache(AbstractHttpConfigurer::disable)
+                .securityContext(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -69,10 +87,18 @@ public class SecurityConfig {
                         .requestMatchers("/routes/{id}").permitAll() // 获取路线详情
                         .requestMatchers("/routes/generate").authenticated() // 生成路线需要登录
                         .requestMatchers("/routes/my").authenticated() // 获取我的路线需要登录
+                        .requestMatchers("/community/posts/comments/**",
+                                "/community/posts/my",
+                                "/community/posts/liked",
+                                "/community/posts/commented",
+                                "/community/posts/favorites").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/community/posts/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/community/posts/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/community/posts/**").authenticated()
                         .requestMatchers("/community/posts").permitAll()
-                        .requestMatchers("/community/posts/**").permitAll()
+                        .requestMatchers("/community/posts/*").permitAll()
                         .requestMatchers("/carousel").permitAll()
-                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/uploads/**", "/digital-images/**", "/api/uploads/**", "/api/digital-images/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/admin/**").authenticated()
@@ -82,6 +108,16 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return web -> web.ignoring()
+                .requestMatchers("/digital-images/**",
+                        "/uploads/**",
+                        "/api/digital-images/**",
+                        "/api/uploads/**",
+                        "/favicon.ico");
     }
 
     @Bean

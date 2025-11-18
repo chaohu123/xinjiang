@@ -11,12 +11,11 @@ import com.example.culturalxinjiang.repository.CultureResourceRepository;
 import com.example.culturalxinjiang.repository.FavoriteRepository;
 import com.example.culturalxinjiang.repository.RouteRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
+import com.example.culturalxinjiang.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,8 +115,7 @@ public class FavoriteService {
     }
 
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+        String username = SecurityUtils.getRequiredUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
     }

@@ -11,12 +11,11 @@ import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.EventRegistrationRepository;
 import com.example.culturalxinjiang.repository.EventRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
+import com.example.culturalxinjiang.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -304,11 +303,8 @@ public class AdminEventService {
     }
 
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
-            throw new RuntimeException("未获取到当前登录用户信息");
-        }
-        return userRepository.findByUsername(authentication.getName())
+        String username = SecurityUtils.getRequiredUsername();
+        return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
     }
 }

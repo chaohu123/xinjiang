@@ -62,7 +62,14 @@
             <p class="itinerary-subtitle">探索新疆的每一处精彩</p>
           </div>
 
-          <div class="custom-timeline">
+          <div v-if="!routeDetail.itinerary || routeDetail.itinerary.length === 0" class="empty-itinerary">
+            <el-empty description="暂无行程安排" :image-size="120">
+              <template #description>
+                <p style="color: #909399; margin-top: 16px;">该路线暂未添加详细行程，请稍后再来查看</p>
+              </template>
+            </el-empty>
+          </div>
+          <div v-else class="custom-timeline">
             <div
               v-for="(item, index) in routeDetail.itinerary"
               :key="item.day"

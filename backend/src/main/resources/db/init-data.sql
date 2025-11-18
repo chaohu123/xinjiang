@@ -139,67 +139,108 @@ ON DUPLICATE KEY UPDATE event_id = event_id;
 -- =====================================================
 -- 4. 插入路线数据
 -- =====================================================
-INSERT INTO routes (title, description, cover, theme, duration, distance, start_location, end_location, waypoints, views, favorites) VALUES
-('新疆经典7日游', '游览新疆最著名的景点，包括天山天池、喀纳斯湖、吐鲁番等，体验新疆的自然风光和民族文化。', 'https://example.com/images/route1.jpg', '自然风光', 7, 2500, '乌鲁木齐', '乌鲁木齐', 8, 2340, 189),
-('丝绸之路文化之旅', '沿着古丝绸之路，探访历史名城，了解东西方文化交流的历史。', 'https://example.com/images/route2.jpg', '历史文化', 5, 1800, '乌鲁木齐', '喀什', 6, 1890, 156),
-('天山天池深度游', '深度游览天山天池及周边景点，体验新疆的自然之美。', 'https://example.com/images/route3.jpg', '自然风光', 3, 500, '乌鲁木齐', '昌吉', 4, 1560, 123)
+-- 注意：先删除现有路线数据，确保使用新的主题分类
+SET FOREIGN_KEY_CHECKS = 0;
+DELETE FROM route_tips;
+DELETE FROM route_resources;
+DELETE FROM itinerary_meals;
+DELETE FROM itinerary_locations;
+DELETE FROM itinerary_items;
+DELETE FROM routes;
+SET FOREIGN_KEY_CHECKS = 1;
+-- 丝绸之路主题 (silkRoad) - 4条
+INSERT INTO routes (title, description, cover, theme, duration, distance, start_location, end_location, waypoints, views, favorites, created_at, updated_at) VALUES
+                                                                                                                                                                 ('丝绸之路文化之旅', '探索新疆丝绸之路的历史文化，感受千年文明的魅力。从乌鲁木齐出发，途经吐鲁番、库尔勒，最终到达喀什，体验多元文化的交融。', 'https://images.unsplash.com/photo-1518638150340-f706e86654de?w=800', 'silkRoad', 7, 1200.0, '乌鲁木齐', '喀什', 15, 1250, 89, DATE_SUB(NOW(), INTERVAL 30 DAY), DATE_SUB(NOW(), INTERVAL 30 DAY)),
+                                                                                                                                                                 ('古丝绸之路南道探秘', '沿着古丝绸之路南道，从和田出发，穿越塔克拉玛干沙漠边缘，探访千年古城遗址，感受丝路商旅的传奇历史。途经和田、于田、民丰，体验沙漠绿洲的独特魅力。', 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=800', 'silkRoad', 8, 900.0, '和田', '库尔勒', 18, 1680, 125, DATE_SUB(NOW(), INTERVAL 28 DAY), DATE_SUB(NOW(), INTERVAL 28 DAY)),
+                                                                                                                                                                 ('北丝绸之路文化探索', '从乌鲁木齐出发，沿天山北麓西行，探访昌吉、石河子、奎屯等丝路重镇，了解丝绸之路北道的商贸历史和文化交流。', 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800', 'silkRoad', 6, 800.0, '乌鲁木齐', '伊宁', 12, 980, 67, DATE_SUB(NOW(), INTERVAL 22 DAY), DATE_SUB(NOW(), INTERVAL 22 DAY)),
+                                                                                                                                                                 ('玄奘取经之路追寻', '重走唐代高僧玄奘的西行路线，从哈密到喀什，探访古代佛教遗址，感受宗教文化交流的历史痕迹。', 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800', 'silkRoad', 9, 1500.0, '哈密', '喀什', 20, 2340, 178, DATE_SUB(NOW(), INTERVAL 35 DAY), DATE_SUB(NOW(), INTERVAL 35 DAY)),
+
+-- 自然风光主题 (nature) - 6条
+                                                                                                                                                                 ('天山天池自然风光之旅', '领略天山天池的壮美景色，感受大自然的鬼斧神工。适合喜欢自然风光的旅行者，包含徒步、摄影等多种体验。', 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800', 'nature', 3, 150.0, '乌鲁木齐', '天山天池', 8, 980, 67, DATE_SUB(NOW(), INTERVAL 25 DAY), DATE_SUB(NOW(), INTERVAL 25 DAY)),
+                                                                                                                                                                 ('喀纳斯湖仙境之旅', '探访神秘的喀纳斯湖，欣赏湖光山色，体验图瓦人的独特文化，感受大自然的宁静与美丽。', 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800', 'nature', 6, 800.0, '乌鲁木齐', '喀纳斯', 14, 2100, 145, DATE_SUB(NOW(), INTERVAL 10 DAY), DATE_SUB(NOW(), INTERVAL 10 DAY)),
+                                                                                                                                                                 ('吐鲁番火焰山探险', '挑战火焰山的高温，参观葡萄沟、坎儿井等著名景点，了解吐鲁番独特的地理环境和历史文化。', 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800', 'nature', 2, 200.0, '吐鲁番', '吐鲁番', 6, 750, 48, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY)),
+                                                                                                                                                                 ('塔克拉玛干沙漠穿越', '挑战中国最大的沙漠，体验沙漠越野的刺激，观赏壮观的沙漠日出日落，探访沙漠中的绿洲，感受大漠孤烟直的壮美景象。', 'https://images.unsplash.com/photo-1542407236-85bb69a6d1c1?w=800', 'nature', 5, 1200.0, '库尔勒', '和田', 16, 1890, 156, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY)),
+                                                                                                                                                                 ('巴音布鲁克草原之旅', '探访中国第二大草原巴音布鲁克，欣赏九曲十八弯的壮丽景色，观赏天鹅湖的优雅天鹅，体验蒙古族的草原文化。', 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800', 'nature', 4, 600.0, '库尔勒', '巴音布鲁克', 10, 1560, 112, DATE_SUB(NOW(), INTERVAL 12 DAY), DATE_SUB(NOW(), INTERVAL 12 DAY)),
+                                                                                                                                                                 ('帕米尔高原风光摄影', '前往世界屋脊帕米尔高原，拍摄慕士塔格峰、公格尔九别峰等雪山美景，体验塔吉克族的独特文化。', 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', 'nature', 7, 1000.0, '喀什', '塔什库尔干', 15, 1980, 134, DATE_SUB(NOW(), INTERVAL 18 DAY), DATE_SUB(NOW(), INTERVAL 18 DAY)),
+
+-- 文化体验主题 (culture) - 5条
+                                                                                                                                                                 ('维吾尔文化深度体验', '深入了解维吾尔族的文化传统，参观博物馆、体验手工艺制作、品尝地道美食，感受浓郁的民族风情。', 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800', 'culture', 5, 600.0, '乌鲁木齐', '吐鲁番', 12, 1560, 112, DATE_SUB(NOW(), INTERVAL 20 DAY), DATE_SUB(NOW(), INTERVAL 20 DAY)),
+                                                                                                                                                                 ('哈萨克族文化深度游', '深入体验哈萨克族的游牧文化，观看传统赛马、叼羊比赛，品尝马奶酒和手抓肉，入住哈萨克毡房，感受草原民族的豪迈与热情。', 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800', 'culture', 4, 500.0, '伊犁', '那拉提', 10, 1320, 98, DATE_SUB(NOW(), INTERVAL 18 DAY), DATE_SUB(NOW(), INTERVAL 18 DAY)),
+                                                                                                                                                                 ('塔吉克族文化探索', '探访帕米尔高原的塔吉克族村落，了解这个高原民族的独特生活方式和文化传统，体验鹰笛、鹰舞等非物质文化遗产。', 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', 'culture', 3, 300.0, '塔什库尔干', '塔什库尔干', 8, 890, 56, DATE_SUB(NOW(), INTERVAL 15 DAY), DATE_SUB(NOW(), INTERVAL 15 DAY)),
+                                                                                                                                                                 ('蒙古族草原文化体验', '在巴音布鲁克草原体验蒙古族的游牧文化，学习蒙古族歌舞，品尝奶茶和手抓肉，感受草原民族的热情好客。', 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800', 'culture', 4, 450.0, '和静', '巴音布鲁克', 9, 1120, 78, DATE_SUB(NOW(), INTERVAL 14 DAY), DATE_SUB(NOW(), INTERVAL 14 DAY)),
+                                                                                                                                                                 ('回族文化美食之旅', '探访新疆回族聚居区，了解回族的历史文化，品尝地道的回族美食，参观清真寺，体验伊斯兰文化的独特魅力。', 'https://images.unsplash.com/photo-1518638150340-f706e86654de?w=800', 'culture', 3, 350.0, '昌吉', '乌鲁木齐', 7, 980, 65, DATE_SUB(NOW(), INTERVAL 16 DAY), DATE_SUB(NOW(), INTERVAL 16 DAY)),
+
+-- 美食之旅主题 (food) - 5条
+                                                                                                                                                                 ('新疆美食探索之旅', '品尝新疆最地道的美食，从大盘鸡到烤羊肉串，从手抓饭到馕，体验舌尖上的新疆。', 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800', 'food', 4, 400.0, '乌鲁木齐', '伊犁', 10, 890, 54, DATE_SUB(NOW(), INTERVAL 15 DAY), DATE_SUB(NOW(), INTERVAL 15 DAY)),
+                                                                                                                                                                 ('南疆美食寻味之旅', '从喀什出发，一路品尝南疆最地道的美食。烤包子、拉条子、抓饭、烤全羊、馕坑肉...每一站都是味蕾的盛宴，体验新疆美食的丰富多样和独特风味。', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800', 'food', 5, 650.0, '喀什', '阿克苏', 12, 1450, 108, DATE_SUB(NOW(), INTERVAL 12 DAY), DATE_SUB(NOW(), INTERVAL 12 DAY)),
+                                                                                                                                                                 ('北疆特色美食之旅', '探索北疆各地的特色美食，从乌鲁木齐的拌面到伊犁的马肠子，从阿勒泰的冷水鱼到塔城的风干肉，体验北疆多元的美食文化。', 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=800', 'food', 6, 800.0, '乌鲁木齐', '阿勒泰', 14, 1230, 89, DATE_SUB(NOW(), INTERVAL 20 DAY), DATE_SUB(NOW(), INTERVAL 20 DAY)),
+                                                                                                                                                                 ('丝绸之路美食文化之旅', '沿着丝绸之路品尝历史悠久的传统美食，了解各种美食的历史渊源和文化背景，体验美食与文化的完美结合。', 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800', 'food', 7, 1000.0, '哈密', '喀什', 16, 1670, 123, DATE_SUB(NOW(), INTERVAL 25 DAY), DATE_SUB(NOW(), INTERVAL 25 DAY)),
+                                                                                                                                                                 ('夜市美食探索之旅', '专门探索新疆各地的夜市美食，从乌鲁木齐的五一夜市到喀什的汗巴扎夜市，体验新疆夜市的独特魅力和丰富美食。', 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=800', 'food', 4, 300.0, '乌鲁木齐', '喀什', 8, 1340, 96, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY))
+
+ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description), cover = VALUES(cover), updated_at = NOW();
+
+-- 为第一条路线"丝绸之路文化之旅"添加示例行程数据
+-- 注意：这里使用 LAST_INSERT_ID() 获取刚插入的第一条路线的ID
+-- 由于我们使用 INSERT ... VALUES 一次性插入多条，需要先获取第一条路线的ID
+SET @route1_id = (SELECT id FROM routes WHERE title = '丝绸之路文化之旅' LIMIT 1);
+
+-- 插入行程项
+INSERT INTO itinerary_items (route_id, day, title, description, accommodation) VALUES
+(@route1_id, 1, '抵达乌鲁木齐', '抵达乌鲁木齐，入住酒店，自由活动。可以前往国际大巴扎感受新疆的市井文化，品尝当地特色小吃。', '乌鲁木齐酒店'),
+(@route1_id, 2, '乌鲁木齐 - 吐鲁番', '前往吐鲁番，参观火焰山、葡萄沟，了解吐鲁番独特的地理环境和历史文化。体验维吾尔族传统民居，品尝葡萄干和哈密瓜。', '吐鲁番酒店'),
+(@route1_id, 3, '吐鲁番 - 库尔勒', '前往库尔勒，参观库尔勒博物馆，了解丝路历史。游览孔雀河，感受库尔勒的城市魅力。', '库尔勒酒店'),
+(@route1_id, 4, '库尔勒 - 轮台', '前往轮台，探访轮台古城遗址，感受古代丝路重镇的历史风貌。参观塔里木河胡杨林，欣赏千年胡杨的壮美。', '轮台酒店'),
+(@route1_id, 5, '轮台 - 库车', '前往库车，参观库车大寺和库车王府，了解古代龟兹文化。游览天山神秘大峡谷，感受大自然的鬼斧神工。', '库车酒店'),
+(@route1_id, 6, '库车 - 阿克苏', '前往阿克苏，参观温宿大峡谷，欣赏丹霞地貌的壮丽景色。体验阿克苏的苹果文化，品尝当地特色美食。', '阿克苏酒店'),
+(@route1_id, 7, '阿克苏 - 喀什', '前往喀什，抵达后参观艾提尕尔清真寺和喀什古城，感受浓郁的维吾尔族文化氛围，结束愉快的丝路之旅。', '喀什酒店')
 ON DUPLICATE KEY UPDATE id = id;
 
--- 插入路线行程项
-INSERT INTO itinerary_items (route_id, day, title, description, accommodation) VALUES
-(1, 1, '抵达乌鲁木齐', '抵达乌鲁木齐，入住酒店，自由活动。', '乌鲁木齐酒店'),
-(1, 2, '天山天池', '游览天山天池，欣赏美丽的自然风光。', '天山天池附近酒店'),
-(1, 3, '前往喀纳斯', '乘车前往喀纳斯，沿途欣赏风景。', '喀纳斯酒店'),
-(2, 1, '乌鲁木齐-吐鲁番', '前往吐鲁番，参观火焰山、葡萄沟。', '吐鲁番酒店'),
-(2, 2, '吐鲁番-库尔勒', '前往库尔勒，参观库尔勒博物馆。', '库尔勒酒店'),
-(3, 1, '前往天山天池', '前往天山天池，开始游览。', '天山天池附近酒店'),
-(3, 2, '天山天池深度游', '全天游览天山天池及周边景点。', '天山天池附近酒店')
-ON DUPLICATE KEY UPDATE id = id;
+-- 获取行程项ID并插入地点信息
+SET @item1_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 1 LIMIT 1);
+SET @item2_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 2 LIMIT 1);
+SET @item3_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 3 LIMIT 1);
+SET @item4_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 4 LIMIT 1);
+SET @item5_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 5 LIMIT 1);
+SET @item6_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 6 LIMIT 1);
+SET @item7_id = (SELECT id FROM itinerary_items WHERE route_id = @route1_id AND day = 7 LIMIT 1);
 
 -- 插入行程地点
 INSERT INTO itinerary_locations (itinerary_item_id, name, lat, lng, description) VALUES
-(2, '天山天池', 43.8833, 88.1333, '天山天池主景区'),
-(2, '天池观景台', 43.8900, 88.1400, '最佳观景位置'),
-(4, '火焰山', 42.9476, 89.1788, '西游记中的火焰山'),
-(4, '葡萄沟', 42.9500, 89.1800, '吐鲁番著名的葡萄种植区'),
-(6, '天山天池', 43.8833, 88.1333, '天山天池主景区'),
-(7, '天山天池', 43.8833, 88.1333, '天山天池主景区'),
-(7, '天池观景台', 43.8900, 88.1400, '最佳观景位置')
+(@item1_id, '国际大巴扎', 43.8256, 87.6168, '新疆最大的巴扎，体验当地市井文化'),
+(@item2_id, '火焰山', 42.9476, 89.1788, '西游记中的火焰山，感受高温奇观'),
+(@item2_id, '葡萄沟', 42.9500, 89.1800, '吐鲁番著名的葡萄种植区，品尝新鲜葡萄'),
+(@item3_id, '库尔勒博物馆', 41.7592, 86.1369, '了解丝路历史和库尔勒文化'),
+(@item3_id, '孔雀河', 41.7600, 86.1400, '库尔勒的母亲河，欣赏城市风光'),
+(@item4_id, '轮台古城遗址', 41.7833, 84.2500, '古代丝路重镇，感受历史沧桑'),
+(@item4_id, '塔里木河胡杨林', 41.8000, 84.3000, '千年胡杨林，欣赏胡杨的壮美'),
+(@item5_id, '库车大寺', 41.7167, 82.9500, '新疆第二大清真寺，了解伊斯兰文化'),
+(@item5_id, '天山神秘大峡谷', 41.7500, 83.0000, '丹霞地貌奇观，感受大自然的鬼斧神工'),
+(@item6_id, '温宿大峡谷', 41.2667, 80.2333, '壮丽的丹霞地貌，摄影爱好者的天堂'),
+(@item7_id, '艾提尕尔清真寺', 39.4677, 75.9938, '新疆最大的清真寺，感受宗教文化'),
+(@item7_id, '喀什古城', 39.4700, 75.9950, '千年古城，体验浓郁的维吾尔族文化')
 ON DUPLICATE KEY UPDATE itinerary_item_id = itinerary_item_id;
 
 -- 插入行程餐饮
 INSERT INTO itinerary_meals (itinerary_item_id, meal) VALUES
-(1, '晚餐'),
-(2, '早餐'),
-(2, '午餐'),
-(2, '晚餐'),
-(3, '早餐'),
-(4, '午餐'),
-(4, '晚餐'),
-(6, '午餐'),
-(7, '早餐'),
-(7, '午餐')
+(@item1_id, '晚餐'),
+(@item2_id, '早餐'),
+(@item2_id, '午餐'),
+(@item2_id, '晚餐'),
+(@item3_id, '早餐'),
+(@item3_id, '午餐'),
+(@item3_id, '晚餐'),
+(@item4_id, '早餐'),
+(@item4_id, '午餐'),
+(@item4_id, '晚餐'),
+(@item5_id, '早餐'),
+(@item5_id, '午餐'),
+(@item5_id, '晚餐'),
+(@item6_id, '早餐'),
+(@item6_id, '午餐'),
+(@item6_id, '晚餐'),
+(@item7_id, '早餐'),
+(@item7_id, '午餐')
 ON DUPLICATE KEY UPDATE itinerary_item_id = itinerary_item_id;
-
--- 插入路线资源关联
-INSERT INTO route_resources (route_id, culture_resource_id, `order`) VALUES
-(1, 3, 1),
-(1, 5, 2),
-(2, 2, 1),
-(2, 5, 2),
-(3, 3, 1)
-ON DUPLICATE KEY UPDATE id = id;
-
--- 插入路线提示
-INSERT INTO route_tips (route_id, tip) VALUES
-(1, '建议提前预订酒店'),
-(1, '注意防晒，携带防晒用品'),
-(1, '尊重当地民族风俗'),
-(2, '注意天气变化，携带适当衣物'),
-(2, '保护文物，不要触摸展品'),
-(3, '穿着舒适的运动鞋'),
-(3, '携带相机记录美景')
-ON DUPLICATE KEY UPDATE route_id = route_id;
 
 -- =====================================================
 -- 5. 插入社区帖子数据

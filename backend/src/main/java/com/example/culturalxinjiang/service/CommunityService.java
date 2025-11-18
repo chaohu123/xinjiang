@@ -5,6 +5,7 @@ import com.example.culturalxinjiang.dto.request.CreatePostRequest;
 import com.example.culturalxinjiang.dto.request.UpdatePostRequest;
 import com.example.culturalxinjiang.dto.response.CommunityPostDetailResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
+import com.example.culturalxinjiang.dto.response.MyCommentResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.entity.Comment;
 import com.example.culturalxinjiang.entity.CommunityPost;
@@ -15,12 +16,13 @@ import com.example.culturalxinjiang.repository.CommunityPostRepository;
 import com.example.culturalxinjiang.repository.FavoriteRepository;
 import com.example.culturalxinjiang.repository.PostLikeRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
+import com.example.culturalxinjiang.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -198,9 +200,53 @@ public class CommunityService {
         postRepository.save(post);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<MyCommentResponse> getMyComments(Integer page, Integer size) {
+        User user = getCurrentUser();
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Comment> commentPage = commentRepository.findByAuthorId(user.getId(), pageable);
+
+        List<MyCommentResponse> responses = commentPage.getContent().stream()
+                .map(this::mapToMyCommentResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(responses, commentPage.getTotalElements(), page, size);
+    }
+
+    @Transactional
+    public void updateComment(Long commentId, CommentRequest request) {
+        User user = getCurrentUser();
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("评论不存在"));
+
+        if (!comment.getAuthor().getId().equals(user.getId())) {
+            throw new RuntimeException("无权编辑该评论");
+        }
+
+        comment.setContent(request.getContent());
+        commentRepository.save(comment);
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId) {
+        User user = getCurrentUser();
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("评论不存在"));
+
+        if (!comment.getAuthor().getId().equals(user.getId())) {
+            throw new RuntimeException("无权删除该评论");
+        }
+
+        CommunityPost post = comment.getPost();
+        commentRepository.delete(comment);
+
+        long commentCount = commentRepository.countByPostId(post.getId());
+        post.setComments((int) commentCount);
+        postRepository.save(post);
+    }
+
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+        String username = SecurityUtils.getRequiredUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
     }
@@ -334,6 +380,21 @@ public class CommunityService {
                 .collect(Collectors.toList()));
 
         return response;
+    }
+
+    private MyCommentResponse mapToMyCommentResponse(Comment comment) {
+        CommunityPost post = comment.getPost();
+        List<String> images = post.getImages() != null ? post.getImages() : new ArrayList<>();
+        return MyCommentResponse.builder()
+                .id(comment.getId())
+                .content(comment.getContent())
+                .postId(post.getId())
+                .postTitle(post.getTitle())
+                .postCover(images.isEmpty() ? null : images.get(0))
+                .postStatus(post.getStatus())
+                .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
+                .build();
     }
 
     @Transactional(readOnly = true)
