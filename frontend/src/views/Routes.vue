@@ -75,49 +75,173 @@
         @current-change="handlePageChange"
       />
 
-      <el-dialog v-model="showGenerateDialog" title="生成自定义路线" width="700px">
-        <el-form :model="generateForm" :rules="formRules" ref="generateFormRef" label-width="120px">
-          <el-form-item label="起点" prop="startLocation">
-            <el-input v-model="generateForm.startLocation" placeholder="请输入起点，如：乌鲁木齐" />
+      <el-dialog v-model="showGenerateDialog" title="生成自定义路线" width="900px" :close-on-click-modal="false">
+        <el-form :model="generateForm" :rules="formRules" ref="generateFormRef" label-width="140px">
+          <el-divider content-position="left">目的地与时间</el-divider>
+          <el-form-item label="目的地" prop="destinations">
+            <el-input
+              v-model="generateForm.destinations"
+              placeholder="请输入目的地（城市/地区），多地请按顺序列出，如：乌鲁木齐,喀什,伊犁 或 乌鲁木齐→喀什→伊犁"
+            />
+            <div class="form-tip">支持多个城市，用逗号或→分隔，按顺序排列</div>
           </el-form-item>
-          <el-form-item label="终点" prop="endLocation">
-            <el-input v-model="generateForm.endLocation" placeholder="请输入终点，如：喀什" />
+          <el-form-item label="旅行日期" prop="travelDates">
+            <el-input
+              v-model="generateForm.travelDates"
+              placeholder="请输入精确日期或大致时间，如：2025-06-10 至 2025-06-16 或 2025年6月"
+            />
           </el-form-item>
-          <el-form-item label="兴趣标签" prop="interests">
-            <el-select v-model="generateForm.interests" multiple placeholder="请选择感兴趣的标签" style="width: 100%">
-              <el-option label="历史" value="history" />
-              <el-option label="自然" value="nature" />
-              <el-option label="文化" value="culture" />
-              <el-option label="美食" value="food" />
-              <el-option label="宗教" value="religion" />
-              <el-option label="建筑" value="architecture" />
-              <el-option label="艺术" value="art" />
+          <el-form-item label="行程天数" prop="duration">
+            <el-input-number v-model="generateForm.duration" :min="1" :max="30" placeholder="请输入行程天数" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="到达时段">
+            <el-select v-model="generateForm.arrivalTime" placeholder="请选择到达时段" style="width: 100%">
+              <el-option label="上午（6:00-12:00）" value="上午" />
+              <el-option label="下午（12:00-18:00）" value="下午" />
+              <el-option label="晚上（18:00-24:00）" value="晚上" />
+              <el-option label="凌晨（0:00-6:00）" value="凌晨" />
             </el-select>
           </el-form-item>
+          <el-form-item label="离开时段">
+            <el-select v-model="generateForm.departureTime" placeholder="请选择离开时段" style="width: 100%">
+              <el-option label="上午（6:00-12:00）" value="上午" />
+              <el-option label="下午（12:00-18:00）" value="下午" />
+              <el-option label="晚上（18:00-24:00）" value="晚上" />
+              <el-option label="凌晨（0:00-6:00）" value="凌晨" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">人员信息</el-divider>
           <el-form-item label="人数" prop="peopleCount">
             <el-input-number v-model="generateForm.peopleCount" :min="1" :max="100" placeholder="请输入人数" style="width: 100%" />
           </el-form-item>
-          <el-form-item label="旅游预算" prop="budget">
+          <el-form-item label="年龄段">
+            <el-input
+              v-model="generateForm.ageGroups"
+              placeholder="如：2个成人,1个儿童(5岁),1个老人(70岁)"
+            />
+            <div class="form-tip">请详细说明人员构成，包括儿童和老人的年龄</div>
+          </el-form-item>
+          <el-form-item label="行动不便者">
+            <el-switch v-model="generateForm.hasMobilityIssues" />
+            <span style="margin-left: 10px; color: #909399; font-size: 12px">如有行动不便者，路线将考虑无障碍设施</span>
+          </el-form-item>
+          <el-form-item label="特殊饮食">
+            <el-select v-model="generateForm.specialDietary" placeholder="请选择特殊饮食需求" style="width: 100%">
+              <el-option label="无特殊需求" value="" />
+              <el-option label="素食" value="素食" />
+              <el-option label="清真" value="清真" />
+              <el-option label="无麸质" value="无麸质" />
+              <el-option label="低盐" value="低盐" />
+              <el-option label="其他" value="其他" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">风格与节奏</el-divider>
+          <el-form-item label="风格偏好">
+            <el-select v-model="generateForm.stylePreferences" multiple placeholder="请选择风格偏好" style="width: 100%">
+              <el-option label="休闲" value="休闲" />
+              <el-option label="紧凑" value="紧凑" />
+              <el-option label="深度文化" value="深度文化" />
+              <el-option label="美食" value="美食" />
+              <el-option label="摄影" value="摄影" />
+              <el-option label="徒步" value="徒步" />
+              <el-option label="购物" value="购物" />
+              <el-option label="亲子" value="亲子" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">预算信息</el-divider>
+          <el-form-item label="总预算">
             <el-input-number
-              v-model="generateForm.budget"
+              v-model="generateForm.totalBudget"
               :min="0"
               :precision="0"
-              placeholder="请输入预算（元）"
+              placeholder="请输入总预算（元）"
               style="width: 100%"
             >
               <template #append>元</template>
             </el-input-number>
           </el-form-item>
-          <el-form-item label="想要打卡的地点" prop="mustVisitLocations">
+          <el-form-item label="每日预算">
+            <el-input-number
+              v-model="generateForm.dailyBudget"
+              :min="0"
+              :precision="0"
+              placeholder="请输入每日预算（元）"
+              style="width: 100%"
+            >
+              <template #append>元/天</template>
+            </el-input-number>
+            <div class="form-tip">如填写总预算，可不填每日预算</div>
+          </el-form-item>
+          <el-form-item label="是否含机票">
+            <el-switch v-model="generateForm.includesFlight" />
+          </el-form-item>
+
+          <el-divider content-position="left">住宿偏好</el-divider>
+          <el-form-item label="住宿类型">
+            <el-select v-model="generateForm.accommodationPreferences" multiple placeholder="请选择住宿偏好" style="width: 100%">
+              <el-option label="经济型酒店" value="经济型酒店" />
+              <el-option label="舒适型酒店" value="舒适型酒店" />
+              <el-option label="豪华酒店" value="豪华酒店" />
+              <el-option label="民宿" value="民宿" />
+              <el-option label="Airbnb" value="Airbnb" />
+              <el-option label="靠近地铁" value="靠近地铁" />
+              <el-option label="市中心" value="市中心" />
+              <el-option label="景区附近" value="景区附近" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">交通偏好</el-divider>
+          <el-form-item label="交通方式">
+            <el-select v-model="generateForm.transportationPreferences" multiple placeholder="请选择交通偏好" style="width: 100%">
+              <el-option label="自驾" value="自驾" />
+              <el-option label="公共交通" value="公共交通" />
+              <el-option label="包车" value="包车" />
+              <el-option label="不想坐夜车" value="不想坐夜车" />
+              <el-option label="不租车" value="不租车" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">景点偏好</el-divider>
+          <el-form-item label="必看景点/体验">
             <el-input
-              v-model="generateForm.mustVisitLocations"
+              v-model="generateForm.mustVisitText"
               type="textarea"
-              :rows="3"
-              placeholder="请输入想要打卡的地点，多个地点用逗号分隔，如：天山天池,喀纳斯湖,火焰山"
+              :rows="2"
+              placeholder="请输入必看的景点或体验，如：想看樱花、体验民族风情、观看日出等"
             />
           </el-form-item>
-          <el-form-item label="预计天数" prop="duration">
-            <el-input-number v-model="generateForm.duration" :min="1" :max="30" placeholder="请输入预计天数" style="width: 100%" />
+          <el-form-item label="必须避开">
+            <el-input
+              v-model="generateForm.mustAvoidText"
+              type="textarea"
+              :rows="2"
+              placeholder="请输入必须避开的景点或体验，如：不想去太商业化的夜市、避开人多的景点等"
+            />
+          </el-form-item>
+
+          <el-divider content-position="left">其他要求</el-divider>
+          <el-form-item label="天气/季节敏感">
+            <el-input
+              v-model="generateForm.weatherSensitivity"
+              type="textarea"
+              :rows="2"
+              placeholder="如：不想在雨季徒步、避开高温天气、希望看到雪景等"
+            />
+          </el-form-item>
+
+          <el-divider content-position="left">额外服务</el-divider>
+          <el-form-item label="需要服务">
+            <el-checkbox-group v-model="generateForm.extraServices">
+              <el-checkbox label="餐厅预订建议">餐厅预订建议</el-checkbox>
+              <el-checkbox label="门票预订建议">门票预订建议</el-checkbox>
+              <el-checkbox label="交通预订建议">交通预订建议</el-checkbox>
+              <el-checkbox label="打包清单">打包清单</el-checkbox>
+              <el-checkbox label="安全提示">安全提示</el-checkbox>
+              <el-checkbox label="签证/入境提醒">签证/入境提醒</el-checkbox>
+            </el-checkbox-group>
           </el-form-item>
         </el-form>
         <template #footer>
@@ -159,40 +283,66 @@ const generating = ref(false)
 const generateFormRef = ref<FormInstance>()
 const defaultRouteCover = '/api/digital-images/route.jpg'
 const generateForm = ref({
+  // 目的地与时间
+  destinations: '',
+  travelDates: '',
+  duration: 3,
+  arrivalTime: '',
+  departureTime: '',
+
+  // 人员信息
+  peopleCount: 1,
+  ageGroups: '',
+  hasMobilityIssues: false,
+  specialDietary: '',
+
+  // 风格与节奏
+  stylePreferences: [] as string[],
+
+  // 预算信息
+  totalBudget: undefined as number | undefined,
+  dailyBudget: undefined as number | undefined,
+  includesFlight: false,
+
+  // 住宿偏好
+  accommodationPreferences: [] as string[],
+
+  // 交通偏好
+  transportationPreferences: [] as string[],
+
+  // 景点偏好
+  mustVisitText: '',
+  mustAvoidText: '',
+
+  // 其他要求
+  weatherSensitivity: '',
+
+  // 额外服务
+  extraServices: [] as string[],
+
+  // 兼容旧字段（可选）
   startLocation: '',
   endLocation: '',
   interests: [] as string[],
-  peopleCount: 1,
   budget: 0,
   mustVisitLocations: '',
-  duration: 3,
 })
 
 // 计算当前是否为"我的路线"标签
 const isMyRoutes = computed(() => activeTab.value === 'my')
 
 const formRules: FormRules = {
-  startLocation: [
-    { required: true, message: '请输入起点', trigger: 'blur' }
+  destinations: [
+    { required: true, message: '请输入目的地', trigger: 'blur' }
   ],
-  endLocation: [
-    { required: true, message: '请输入终点', trigger: 'blur' }
-  ],
-  interests: [
-    { type: 'array', min: 1, message: '请至少选择一个兴趣标签', trigger: 'change' }
+  duration: [
+    { required: true, message: '请输入行程天数', trigger: 'blur' },
+    { type: 'number', min: 1, max: 30, message: '天数范围在1-30天', trigger: 'blur' }
   ],
   peopleCount: [
     { required: true, message: '请输入人数', trigger: 'blur' },
     { type: 'number', min: 1, message: '人数至少为1人', trigger: 'blur' }
   ],
-  budget: [
-    { required: true, message: '请输入预算', trigger: 'blur' },
-    { type: 'number', min: 0, message: '预算不能为负数', trigger: 'blur' }
-  ],
-  duration: [
-    { required: true, message: '请输入预计天数', trigger: 'blur' },
-    { type: 'number', min: 1, max: 30, message: '天数范围在1-30天', trigger: 'blur' }
-  ]
 }
 
 const loadRoutes = async () => {
@@ -254,29 +404,166 @@ const handleGenerate = async () => {
 
     generating.value = true
     try {
-      // 处理打卡地点：将字符串转换为数组
-      const mustVisitLocationsList = generateForm.value.mustVisitLocations
-        .split(',')
-        .map(loc => loc.trim())
-        .filter(loc => loc.length > 0)
+      // 处理必看和必须避开的景点：将字符串转换为数组
+      const mustVisitList = generateForm.value.mustVisitText
+        .split(/[，,、\n]/)
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
 
-      const requestData = {
-        ...generateForm.value,
-        mustVisitLocations: mustVisitLocationsList
+      const mustAvoidList = generateForm.value.mustAvoidText
+        .split(/[，,、\n]/)
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+
+      // 处理额外服务
+      const extraServices = generateForm.value.extraServices || []
+      const needRestaurantSuggestions = extraServices.includes('餐厅预订建议')
+      const needTicketSuggestions = extraServices.includes('门票预订建议')
+      const needTransportSuggestions = extraServices.includes('交通预订建议')
+      const needPackingList = extraServices.includes('打包清单')
+      const needSafetyTips = extraServices.includes('安全提示')
+      const needVisaInfo = extraServices.includes('签证/入境提醒')
+
+      // 构建请求数据
+      const requestData: any = {
+        // 新字段
+        destinations: generateForm.value.destinations,
+        travelDates: generateForm.value.travelDates,
+        duration: generateForm.value.duration,
+        arrivalTime: generateForm.value.arrivalTime,
+        departureTime: generateForm.value.departureTime,
+        peopleCount: generateForm.value.peopleCount,
+        ageGroups: generateForm.value.ageGroups,
+        hasMobilityIssues: generateForm.value.hasMobilityIssues || false,
+        specialDietary: generateForm.value.specialDietary,
+        stylePreferences: generateForm.value.stylePreferences,
+        totalBudget: generateForm.value.totalBudget,
+        dailyBudget: generateForm.value.dailyBudget,
+        includesFlight: generateForm.value.includesFlight || false,
+        accommodationPreferences: generateForm.value.accommodationPreferences,
+        transportationPreferences: generateForm.value.transportationPreferences,
+        mustVisit: mustVisitList,
+        mustAvoid: mustAvoidList,
+        weatherSensitivity: generateForm.value.weatherSensitivity,
+        needRestaurantSuggestions,
+        needTicketSuggestions,
+        needTransportSuggestions,
+        needPackingList,
+        needSafetyTips,
+        needVisaInfo,
       }
 
+      // 兼容旧字段（如果新字段为空，使用旧字段）
+      if (!requestData.destinations && generateForm.value.startLocation && generateForm.value.endLocation) {
+        requestData.destinations = `${generateForm.value.startLocation},${generateForm.value.endLocation}`
+      }
+      if (!requestData.totalBudget && !requestData.dailyBudget && generateForm.value.budget) {
+        requestData.totalBudget = generateForm.value.budget
+      }
+      if (generateForm.value.interests && generateForm.value.interests.length > 0) {
+        requestData.stylePreferences = [
+          ...(requestData.stylePreferences || []),
+          ...generateForm.value.interests
+        ]
+      }
+
+      // 输出请求数据到浏览器控制台
+      console.group('📝 [智能旅游线路规划] 前端准备发送的请求数据')
+      console.log('📍 请求时间:', new Date().toLocaleString('zh-CN'))
+      console.log('📦 完整请求参数:', requestData)
+      console.log('📋 请求参数摘要:')
+      console.log('  - 目的地:', requestData.destinations)
+      console.log('  - 行程天数:', requestData.duration)
+      console.log('  - 人数:', requestData.peopleCount)
+      console.log('  - 预算:', requestData.totalBudget || requestData.dailyBudget || requestData.budget)
+      console.log('  - 风格偏好:', requestData.stylePreferences)
+      console.log('  - 必看景点:', requestData.mustVisit)
+      console.log('  - 必须避开:', requestData.mustAvoid)
+      console.groupEnd()
+
       const route = await generateRoute(requestData)
+
+      // 输出返回的路线数据到浏览器控制台
+      console.group('🎉 [智能旅游线路规划] 前端接收到的路线数据')
+      console.log('📍 接收时间:', new Date().toLocaleString('zh-CN'))
+      console.log('📦 完整路线对象:', route)
+
+      if (route) {
+        console.log('✅ 路线基本信息:')
+        console.log('  - 路线ID:', route.id)
+        console.log('  - 路线标题:', route.title)
+        console.log('  - 路线描述:', route.description?.substring(0, 200) + (route.description?.length > 200 ? '...' : ''))
+        console.log('  - 行程天数:', route.duration)
+        console.log('  - 起点:', route.startLocation)
+        console.log('  - 终点:', route.endLocation)
+
+        if (route.itinerary && Array.isArray(route.itinerary)) {
+          console.log('📅 行程安排详情 (', route.itinerary.length, '天):')
+          route.itinerary.forEach((item: any, index: number) => {
+            console.log(`  第${item.day}天: ${item.title}`)
+            if (item.locations && item.locations.length > 0) {
+              console.log(`    包含 ${item.locations.length} 个景点`)
+            } else {
+              console.warn(`    ⚠️ 第${item.day}天没有景点信息`)
+            }
+          })
+        } else {
+          console.warn('  ⚠️ 没有行程安排数据')
+        }
+
+        if (route.tips && Array.isArray(route.tips)) {
+          console.log('💡 提示信息 (', route.tips.length, '条)')
+        } else {
+          console.warn('  ⚠️ 没有提示信息')
+        }
+
+        // 数据验证
+        const isValid = route.id && route.title && route.description && route.itinerary && route.itinerary.length > 0
+        if (isValid) {
+          console.log('✅ 路线数据验证通过')
+        } else {
+          console.error('❌ 路线数据验证失败，可能DeepSeek API未正确返回数据')
+          console.error('  缺失字段:', {
+            id: !route.id,
+            title: !route.title,
+            description: !route.description,
+            itinerary: !route.itinerary || route.itinerary.length === 0
+          })
+        }
+      } else {
+        console.error('❌ 路线数据为空')
+      }
+      console.groupEnd()
+
       ElMessage.success('路线生成成功！')
       showGenerateDialog.value = false
+
       // 重置表单
       generateForm.value = {
+        destinations: '',
+        travelDates: '',
+        duration: 3,
+        arrivalTime: '',
+        departureTime: '',
+        peopleCount: 1,
+        ageGroups: '',
+        hasMobilityIssues: false,
+        specialDietary: '',
+        stylePreferences: [],
+        totalBudget: undefined,
+        dailyBudget: undefined,
+        includesFlight: false,
+        accommodationPreferences: [],
+        transportationPreferences: [],
+        mustVisitText: '',
+        mustAvoidText: '',
+        weatherSensitivity: '',
+        extraServices: [],
         startLocation: '',
         endLocation: '',
         interests: [],
-        peopleCount: 1,
         budget: 0,
         mustVisitLocations: '',
-        duration: 3,
       }
 
       // 如果当前在"我的路线"标签页，刷新列表
@@ -412,5 +699,12 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 40px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 </style>

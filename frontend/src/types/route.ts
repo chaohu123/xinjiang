@@ -29,9 +29,15 @@ export interface ItineraryItem {
     lat: number
     lng: number
     description?: string
+    priority?: string
+    alternative?: string
+    googleMapsLink?: string
   }[]
   accommodation?: string
   meals?: string[]
+  transportation?: string
+  timeSchedule?: string
+  dailyBudget?: string
 }
 
 export interface RouteResource {
@@ -41,6 +47,7 @@ export interface RouteResource {
   cover: string
   order: number
 }
+
 
 
 

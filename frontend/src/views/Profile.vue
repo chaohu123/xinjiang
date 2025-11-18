@@ -82,15 +82,43 @@
                     v-for="post in posts.list"
                     :key="post.id"
                     class="list-item"
-                    @click="router.push(`/community/post/${post.id}`)"
                   >
                     <div class="item-head">
-                      <p class="item-title">{{ post.title }}</p>
-                      <span class="item-time">{{ formatRelative(post.createdAt) }}</span>
+                      <p class="item-title" @click="router.push(`/community/post/${post.id}`)">{{ post.title }}</p>
+                      <div class="item-head-right">
+                        <el-tag
+                          v-if="post.status"
+                          size="small"
+                          :type="getPostStatusType(post.status)"
+                          style="margin-right: 8px"
+                        >
+                          {{ getPostStatusLabel(post.status) }}
+                        </el-tag>
+                        <span class="item-time">{{ formatRelative(post.createdAt) }}</span>
+                      </div>
                     </div>
                     <p class="item-meta">
                       {{ t('profile.postMeta', { likes: post.likes, comments: post.comments }) }}
                     </p>
+                    <div v-if="post.status === 'rejected' && post.rejectReason" class="reject-reason-box">
+                      <el-alert
+                        :title="`拒绝原因：${post.rejectReason}`"
+                        type="error"
+                        :closable="false"
+                        show-icon
+                      />
+                    </div>
+                    <div v-if="post.status === 'rejected'" class="item-actions">
+                      <el-button
+                        text
+                        type="primary"
+                        size="small"
+                        :icon="Edit"
+                        @click.stop="handleEditPost(post)"
+                      >
+                        重新编辑
+                      </el-button>
+                    </div>
                   </div>
                 </div>
                 <el-empty v-else :description="t('profile.noPosts')" />
@@ -113,6 +141,14 @@
                         <p class="item-meta">{{ buildEventRange(event) }}</p>
                       </div>
                       <div class="timeline-actions">
+                        <el-tag
+                          v-if="event.registrationStatus"
+                          size="small"
+                          :type="getRegistrationStatusType(event.registrationStatus)"
+                          style="margin-right: 8px"
+                        >
+                          {{ getRegistrationStatusLabel(event.registrationStatus) }}
+                        </el-tag>
                         <el-tag size="small" :type="statusType(event.status)">
                           {{ statusLabel(event.status) }}
                         </el-tag>
@@ -568,6 +604,42 @@ const statusLabel = (status?: string) => {
   )
 }
 
+const getPostStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '已拒绝',
+  }
+  return labels[status] || status
+}
+
+const getPostStatusType = (status: string): 'success' | 'warning' | 'danger' | 'info' => {
+  const types: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+  }
+  return types[status] || 'info'
+}
+
+const getRegistrationStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    PENDING: '等待审核',
+    APPROVED: '报名成功',
+    REJECTED: '已拒绝',
+  }
+  return labels[status] || status
+}
+
+const getRegistrationStatusType = (status: string): 'success' | 'warning' | 'danger' | 'info' => {
+  const types: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
+    PENDING: 'warning',
+    APPROVED: 'success',
+    REJECTED: 'danger',
+  }
+  return types[status] || 'info'
+}
+
 const statusTypeMap: Record<string, CalendarPreview['statusType']> = {
   upcoming: 'info',
   ongoing: 'success',
@@ -740,6 +812,11 @@ const goToResource = (resource: CultureResource) => {
 
 const goToRoute = (route: Route) => {
   router.push({ name: 'RouteDetail', params: { id: route.id } })
+}
+
+const handleEditPost = (post: CommunityPost) => {
+  // 跳转到帖子详情页，用户可以在那里编辑
+  router.push(`/community/post/${post.id}?edit=true`)
 }
 
 const routeThemeLabel = (theme?: string | null) => {
@@ -1095,11 +1172,36 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.item-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .item-title {
   font-weight: 600;
   color: var(--text-primary);
+  transition: color 0.2s;
+  cursor: pointer;
+  flex: 1;
+}
+
+.item-title:hover {
+  color: var(--el-color-primary);
+}
+
+.reject-reason-box {
+  margin-top: 12px;
+}
+
+.item-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
 }
 
 .item-time,
@@ -1393,6 +1495,9 @@ onMounted(async () => {
   }
 }
 </style>
+
+
+
 
 
 

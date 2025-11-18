@@ -28,6 +28,9 @@ public class RouteDetailResponse extends RouteResponse {
         private List<Location> locations;
         private String accommodation;
         private List<String> meals;
+        private String transportation;
+        private String timeSchedule;
+        private String dailyBudget;
 
         @Data
         @NoArgsConstructor

@@ -1,6 +1,7 @@
 package com.example.culturalxinjiang.service;
 
 import com.example.culturalxinjiang.dto.request.GenerateRouteRequest;
+import com.example.culturalxinjiang.dto.response.ApiResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.dto.response.RouteDetailResponse;
 import com.example.culturalxinjiang.dto.response.RouteResponse;
@@ -79,19 +80,83 @@ public class RouteService {
         return mapToDetailResponse(route);
     }
 
+    // 用于存储调试信息的内部类
+    public static class RouteGenerationResult {
+        private RouteDetailResponse route;
+        private ApiResponse.DebugInfo debugInfo;
+
+        public RouteGenerationResult(RouteDetailResponse route, ApiResponse.DebugInfo debugInfo) {
+            this.route = route;
+            this.debugInfo = debugInfo;
+        }
+
+        public RouteDetailResponse getRoute() {
+            return route;
+        }
+
+        public ApiResponse.DebugInfo getDebugInfo() {
+            return debugInfo;
+        }
+    }
+
     @Transactional
-    public RouteDetailResponse generateRoute(GenerateRouteRequest request) {
-        log.info("开始生成路线：起点={}, 终点={}, 天数={}, 人数={}, 预算={}",
-            request.getStartLocation(), request.getEndLocation(),
-            request.getDuration(), request.getPeopleCount(), request.getBudget());
+    public RouteGenerationResult generateRouteWithDebug(GenerateRouteRequest request) {
+        // 处理目的地：从 destinations 中提取起点和终点
+        String startLocation = request.getStartLocation();
+        String endLocation = request.getEndLocation();
 
-        // 调用AI服务生成路线
-        AIRouteResponse aiResponse = aiService.generateRoute(request);
+        if (request.getDestinations() != null && !request.getDestinations().isEmpty()) {
+            String destinations = request.getDestinations();
+            // 支持逗号、中文逗号或箭头分隔
+            String[] cities = destinations.split("[,，→]|->");
+            if (cities.length > 0) {
+                startLocation = cities[0].trim();
+                if (cities.length > 1) {
+                    endLocation = cities[cities.length - 1].trim();
+                } else {
+                    endLocation = startLocation; // 单城市路线
+                }
+            }
+        }
 
-        // 构建路线主题（基于兴趣标签）
-        String theme = (request.getInterests() != null && !request.getInterests().isEmpty())
-            ? String.join(",", request.getInterests())
-            : "general";
+        // 处理预算：优先使用 totalBudget，否则使用 budget
+        Double budget = request.getTotalBudget() != null ? request.getTotalBudget() : request.getBudget();
+        if (budget == null && request.getDailyBudget() != null && request.getDuration() != null) {
+            budget = request.getDailyBudget() * request.getDuration();
+        }
+
+        log.info("开始生成路线：目的地={}, 天数={}, 人数={}, 预算={}",
+            request.getDestinations(), request.getDuration(), request.getPeopleCount(), budget);
+
+        // 调用AI服务生成路线（记录开始时间）
+        long aiCallStartTime = System.currentTimeMillis();
+        AIRouteResponse aiResponse;
+        String aiProvider = "unknown";
+        boolean aiCallSuccess = false;
+        String aiError = null;
+
+        try {
+            aiResponse = aiService.generateRoute(request);
+            aiCallSuccess = true;
+            aiProvider = aiService.getProvider(); // 需要添加getter方法
+            log.info("DeepSeek API调用成功，Provider: {}", aiProvider);
+        } catch (Exception e) {
+            aiCallSuccess = false;
+            aiError = e.getMessage();
+            log.error("DeepSeek API调用失败: {}", aiError, e);
+            throw e; // 重新抛出异常
+        }
+
+        long aiCallEndTime = System.currentTimeMillis();
+        long aiCallDuration = aiCallEndTime - aiCallStartTime;
+
+        // 构建路线主题（基于风格偏好或兴趣标签）
+        String theme = "general";
+        if (request.getStylePreferences() != null && !request.getStylePreferences().isEmpty()) {
+            theme = String.join(",", request.getStylePreferences());
+        } else if (request.getInterests() != null && !request.getInterests().isEmpty()) {
+            theme = String.join(",", request.getInterests());
+        }
 
         // 获取当前登录用户
         User user = getCurrentUser();
@@ -102,9 +167,9 @@ public class RouteService {
                 .description(aiResponse.getDescription())
                 .theme(theme)
                 .duration(request.getDuration())
-                .distance(calculateDistance(request.getStartLocation(), request.getEndLocation()))
-                .startLocation(request.getStartLocation())
-                .endLocation(request.getEndLocation())
+                .distance(calculateDistance(startLocation, endLocation))
+                .startLocation(startLocation)
+                .endLocation(endLocation)
                 .waypoints(0)
                 .views(0)
                 .favorites(0)
@@ -121,7 +186,22 @@ public class RouteService {
                 item.setRoute(route);
                 item.setDay(aiItem.getDay());
                 item.setTitle(aiItem.getTitle());
-                item.setDescription(aiItem.getDescription());
+
+                // 合并所有信息到 description 中（因为数据库只有 description 字段）
+                StringBuilder descBuilder = new StringBuilder();
+                if (aiItem.getDescription() != null && !aiItem.getDescription().isEmpty()) {
+                    descBuilder.append(aiItem.getDescription());
+                }
+                if (aiItem.getTimeSchedule() != null && !aiItem.getTimeSchedule().isEmpty()) {
+                    descBuilder.append("\n\n【时间安排】\n").append(aiItem.getTimeSchedule());
+                }
+                if (aiItem.getTransportation() != null && !aiItem.getTransportation().isEmpty()) {
+                    descBuilder.append("\n\n【交通信息】\n").append(aiItem.getTransportation());
+                }
+                if (aiItem.getDailyBudget() != null && !aiItem.getDailyBudget().isEmpty()) {
+                    descBuilder.append("\n\n【每日预算】\n").append(aiItem.getDailyBudget());
+                }
+                item.setDescription(descBuilder.toString());
 
                 // 转换地点信息（只保存有坐标的地点，因为数据库要求 lat/lng 不能为 null）
                 if (aiItem.getLocations() != null) {
@@ -174,7 +254,27 @@ public class RouteService {
 
         log.info("路线生成成功，ID={}, 标题={}", route.getId(), route.getTitle());
 
-        return mapToDetailResponse(route);
+        RouteDetailResponse response = mapToDetailResponse(route);
+
+        // 构建调试信息
+        ApiResponse.DebugInfo debugInfo = ApiResponse.DebugInfo.builder()
+                .apiCallStatus(aiCallSuccess ? "成功" : "失败")
+                .apiCallSuccess(aiCallSuccess)
+                .apiResponseTime(aiCallDuration + "ms")
+                .aiProvider(aiProvider)
+                .apiError(aiError)
+                .build();
+
+        log.info("路线生成完成，DeepSeek API调用状态: {}, 耗时: {}ms",
+                aiCallSuccess ? "成功" : "失败", aiCallDuration);
+
+        return new RouteGenerationResult(response, debugInfo);
+    }
+
+    // 保持向后兼容的方法（不包含调试信息）
+    @Transactional
+    public RouteDetailResponse generateRoute(GenerateRouteRequest request) {
+        return generateRouteWithDebug(request).getRoute();
     }
 
     private Double calculateDistance(String start, String end) {
@@ -226,7 +326,38 @@ public class RouteService {
                     RouteDetailResponse.ItineraryItem dtoItem = new RouteDetailResponse.ItineraryItem();
                     dtoItem.setDay(item.getDay());
                     dtoItem.setTitle(item.getTitle());
-                    dtoItem.setDescription(item.getDescription());
+
+                    // 从 description 中解析出各个部分
+                    String fullDescription = item.getDescription();
+                    if (fullDescription != null) {
+                        // 分离描述、时间安排、交通信息和预算
+                        String[] parts = fullDescription.split("\n\n【");
+                        String description = parts.length > 0 ? parts[0].trim() : "";
+                        String timeSchedule = null;
+                        String transportation = null;
+                        String dailyBudget = null;
+
+                        for (int i = 1; i < parts.length; i++) {
+                            String part = "【" + parts[i];
+                            if (part.startsWith("【时间安排】")) {
+                                timeSchedule = part.substring("【时间安排】\n".length()).trim();
+                            } else if (part.startsWith("【交通信息】")) {
+                                transportation = part.substring("【交通信息】\n".length()).trim();
+                            } else if (part.startsWith("【每日预算】")) {
+                                dailyBudget = part.substring("【每日预算】\n".length()).trim();
+                            } else {
+                                // 如果还有其他部分，保留在描述中
+                                description += "\n\n" + part;
+                            }
+                        }
+
+                        dtoItem.setDescription(description);
+                        dtoItem.setTimeSchedule(timeSchedule);
+                        dtoItem.setTransportation(transportation);
+                        dtoItem.setDailyBudget(dailyBudget);
+                    } else {
+                        dtoItem.setDescription("");
+                    }
 
                     // 显式访问懒加载的 locations 集合，确保在事务内加载
                     List<Route.ItineraryItem.Location> locations = item.getLocations() != null

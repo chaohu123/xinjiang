@@ -14,6 +14,19 @@ public class ApiResponse<T> {
     private String message;
     private T data;
     private Long timestamp;
+    private DebugInfo debugInfo; // 调试信息（可选）
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DebugInfo {
+        private String apiCallStatus; // API调用状态
+        private Boolean apiCallSuccess; // 是否成功调用
+        private String apiResponseTime; // API响应时间
+        private String aiProvider; // 使用的AI Provider
+        private String apiError; // API错误信息（如果有）
+    }
 
     public static <T> ApiResponse<T> success(T data) {
         return ApiResponse.<T>builder()

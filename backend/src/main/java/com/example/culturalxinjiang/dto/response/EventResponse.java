@@ -31,6 +31,7 @@ public class EventResponse {
     private List<String> images;
     private List<String> videos;
     private Boolean isRegistered; // 当前用户是否已报名
+    private String registrationStatus; // 报名状态: PENDING, APPROVED, REJECTED
 
     @Data
     @NoArgsConstructor

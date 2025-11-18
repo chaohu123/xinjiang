@@ -20,6 +20,7 @@ export interface Event {
   images?: string[]
   videos?: string[]
   isRegistered?: boolean // 当前用户是否已报名
+  registrationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' // 报名状态
 }
 
 export interface EventDetail extends Event {

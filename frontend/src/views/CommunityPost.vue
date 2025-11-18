@@ -38,9 +38,40 @@
           </div>
 
           <!-- 帖子标题 -->
-          <h1 class="post-title">
-            {{ postDetail.title }}
-          </h1>
+          <div class="post-title-section">
+            <h1 class="post-title">
+              {{ postDetail.title }}
+            </h1>
+            <div v-if="isAuthor" class="post-status-actions">
+              <el-tag
+                v-if="postDetail.status"
+                :type="getPostStatusType(postDetail.status)"
+                size="small"
+                style="margin-right: 8px"
+              >
+                {{ getPostStatusLabel(postDetail.status) }}
+              </el-tag>
+              <el-button
+                v-if="canEdit"
+                type="primary"
+                size="small"
+                :icon="Edit"
+                @click="openEditDialog"
+              >
+                编辑
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 拒绝原因提示 -->
+          <div v-if="postDetail.status === 'rejected' && postDetail.rejectReason" class="reject-reason-alert">
+            <el-alert
+              :title="`拒绝原因：${postDetail.rejectReason}`"
+              type="error"
+              :closable="false"
+              show-icon
+            />
+          </div>
 
           <!-- 标签 -->
           <div class="post-tags">
@@ -211,17 +242,92 @@
         </div>
       </div>
     </div>
+
+    <!-- 编辑对话框 -->
+    <el-dialog v-model="editDialogVisible" title="编辑投稿" width="800px" :close-on-click-modal="false">
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="标题" required>
+          <el-input v-model="editForm.title" placeholder="请输入标题" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item label="内容" required>
+          <el-input
+            v-model="editForm.content"
+            type="textarea"
+            :rows="8"
+            placeholder="请输入内容"
+            maxlength="5000"
+            show-word-limit
+          />
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-input
+            v-model="tagInput"
+            placeholder="输入标签，用逗号分隔"
+            @blur="handleTagInputBlur"
+          />
+          <div v-if="editForm.tags.length > 0" class="tags-preview">
+            <el-tag
+              v-for="(tag, index) in editForm.tags"
+              :key="index"
+              closable
+              @close="removeTag(index)"
+              style="margin: 4px 4px 4px 0"
+            >
+              {{ tag }}
+            </el-tag>
+          </div>
+        </el-form-item>
+        <el-form-item label="图片">
+          <div class="image-upload-section">
+            <div v-if="editForm.images.length > 0" class="image-preview-list">
+              <div v-for="(img, index) in editForm.images" :key="index" class="image-preview-item">
+                <el-image :src="img" fit="cover" class="preview-image" />
+                <el-button
+                  type="danger"
+                  :icon="Delete"
+                  circle
+                  size="small"
+                  class="remove-image-btn"
+                  @click="removeImage(index)"
+                />
+              </div>
+            </div>
+            <el-input
+              v-model="imageUrlInput"
+              placeholder="输入图片URL，每行一个"
+              type="textarea"
+              :rows="3"
+              @blur="handleImageUrlInput"
+            />
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmitEdit">
+          重新提交
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getPostDetail, likePost, unlikePost, commentPost, favoritePost, unfavoritePost } from '@/api/community'
+import {
+  getPostDetail,
+  likePost,
+  unlikePost,
+  commentPost,
+  favoritePost,
+  unfavoritePost,
+  updatePost,
+} from '@/api/community'
 import type { CommunityPostDetail, Comment } from '@/types/community'
 import { fromNow } from '@/utils'
 import LikeButton from '@/components/common/LikeButton.vue'
-import { Star, Share, ArrowLeft, View, ChatLineRound, Message, Edit } from '@element-plus/icons-vue'
+import { Star, Share, ArrowLeft, View, ChatLineRound, Message, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { requireAuth } from '@/utils/auth'
@@ -233,6 +339,17 @@ const postDetail = ref<CommunityPostDetail | null>(null)
 const loading = ref(false)
 const commentContent = ref('')
 const commenting = ref(false)
+const editDialogVisible = ref(false)
+const submitting = ref(false)
+const tagInput = ref('')
+const imageUrlInput = ref('')
+
+const editForm = ref({
+  title: '',
+  content: '',
+  tags: [] as string[],
+  images: [] as string[],
+})
 
 // 过滤出有效的评论（有 author 的评论）
 const validComments = computed(() => {
@@ -246,6 +363,42 @@ const validComments = computed(() => {
   }
   return comments.filter((comment: Comment) => comment && comment.author)
 })
+
+// 判断是否是作者
+const isAuthor = computed(() => {
+  if (!postDetail.value || !userStore.isLoggedIn) {
+    return false
+  }
+  return postDetail.value.author.id === userStore.userInfo?.id
+})
+
+// 判断是否可以编辑（作者且状态为rejected或pending）
+const canEdit = computed(() => {
+  if (!isAuthor.value || !postDetail.value) {
+    return false
+  }
+  return postDetail.value.status === 'rejected' || postDetail.value.status === 'pending'
+})
+
+// 获取投稿状态标签
+const getPostStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '已拒绝',
+  }
+  return labels[status] || status
+}
+
+// 获取投稿状态类型
+const getPostStatusType = (status: string): 'success' | 'warning' | 'danger' | 'info' => {
+  const types: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+  }
+  return types[status] || 'info'
+}
 
 const loadDetail = async () => {
   const id = parseInt(route.params.id as string)
@@ -411,8 +564,113 @@ const handleShare = () => {
   }
 }
 
-onMounted(() => {
-  loadDetail()
+// 打开编辑对话框
+const openEditDialog = () => {
+  if (!postDetail.value) return
+  editForm.value = {
+    title: postDetail.value.title,
+    content: postDetail.value.content,
+    tags: [...(postDetail.value.tags || [])],
+    images: [...(postDetail.value.images || [])],
+  }
+  tagInput.value = editForm.value.tags.join(', ')
+  imageUrlInput.value = editForm.value.images.join('\n')
+  editDialogVisible.value = true
+}
+
+// 处理标签输入
+const handleTagInputBlur = () => {
+  if (!tagInput.value.trim()) return
+  const tags = tagInput.value
+    .split(/[,，]/)
+    .map(tag => tag.trim())
+    .filter(tag => tag.length > 0)
+  editForm.value.tags = [...new Set(tags)]
+  tagInput.value = editForm.value.tags.join(', ')
+}
+
+// 移除标签
+const removeTag = (index: number) => {
+  editForm.value.tags.splice(index, 1)
+  tagInput.value = editForm.value.tags.join(', ')
+}
+
+// 处理图片URL输入
+const handleImageUrlInput = () => {
+  if (!imageUrlInput.value.trim()) return
+  const urls = imageUrlInput.value
+    .split('\n')
+    .map(url => url.trim())
+    .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')))
+  editForm.value.images = [...new Set([...editForm.value.images, ...urls])]
+  imageUrlInput.value = ''
+}
+
+// 移除图片
+const removeImage = (index: number) => {
+  editForm.value.images.splice(index, 1)
+}
+
+// 提交编辑
+const handleSubmitEdit = async () => {
+  if (!postDetail.value) return
+
+  if (!editForm.value.title.trim()) {
+    ElMessage.warning('请输入标题')
+    return
+  }
+
+  if (!editForm.value.content.trim()) {
+    ElMessage.warning('请输入内容')
+    return
+  }
+
+  submitting.value = true
+  try {
+    await updatePost(postDetail.value.id, {
+      title: editForm.value.title.trim(),
+      content: editForm.value.content.trim(),
+      tags: editForm.value.tags,
+      images: editForm.value.images,
+    })
+    ElMessage.success('投稿已更新，已重新提交审核')
+    editDialogVisible.value = false
+    // 重新加载详情
+    await loadDetail()
+    // 如果是从个人中心跳转过来的，清除edit参数
+    if (route.query.edit) {
+      router.replace({ query: {} })
+    }
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error.message || '更新失败'
+    ElMessage.error(errorMessage)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 监听路由参数和postDetail，如果edit=true则自动打开编辑对话框
+watch(
+  () => [route.query.edit, postDetail.value],
+  ([edit, detail]) => {
+    if (edit === 'true' && detail && canEdit.value) {
+      // 延迟一下，确保页面已加载
+      setTimeout(() => {
+        openEditDialog()
+      }, 300)
+    }
+  },
+  { immediate: false },
+)
+
+onMounted(async () => {
+  await loadDetail()
+  // 加载完成后检查是否需要自动打开编辑对话框
+  if (route.query.edit === 'true' && postDetail.value && canEdit.value) {
+    setTimeout(() => {
+      openEditDialog()
+    }, 300)
+  }
 })
 </script>
 
@@ -502,12 +760,32 @@ onMounted(() => {
 }
 
 // 帖子标题
+.post-title-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
 .post-title {
   font-size: 28px;
   font-weight: 700;
-  margin-bottom: 20px;
   color: #303133;
   line-height: 1.4;
+  flex: 1;
+  margin: 0;
+}
+
+.post-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.reject-reason-alert {
+  margin-bottom: 20px;
 }
 
 // 标签
@@ -785,6 +1063,43 @@ onMounted(() => {
   padding: 60px 0;
 }
 
+// 编辑对话框样式
+.tags-preview {
+  margin-top: 8px;
+}
+
+.image-upload-section {
+  width: 100%;
+}
+
+.image-preview-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.image-preview-item {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #ebeef5;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 10;
+}
+
 // 响应式设计
 @media (max-width: 768px) {
   .community-post-page {
@@ -807,8 +1122,20 @@ onMounted(() => {
     justify-content: flex-end;
   }
 
+  .post-title-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
   .post-title {
     font-size: 24px;
+    width: 100%;
+  }
+
+  .post-status-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .post-images {

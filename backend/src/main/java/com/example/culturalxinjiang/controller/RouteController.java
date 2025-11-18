@@ -35,8 +35,20 @@ public class RouteController {
 
     @PostMapping("/generate")
     public ApiResponse<RouteDetailResponse> generateRoute(@Valid @RequestBody GenerateRouteRequest request) {
-        RouteDetailResponse response = routeService.generateRoute(request);
-        return ApiResponse.success(response);
+        RouteService.RouteGenerationResult result = routeService.generateRouteWithDebug(request);
+        RouteDetailResponse response = result.getRoute();
+        ApiResponse.DebugInfo debugInfo = result.getDebugInfo();
+
+        // 构建包含调试信息的响应
+        ApiResponse<RouteDetailResponse> apiResponse = ApiResponse.<RouteDetailResponse>builder()
+                .code(200)
+                .message("成功")
+                .data(response)
+                .timestamp(System.currentTimeMillis())
+                .debugInfo(debugInfo)
+                .build();
+
+        return apiResponse;
     }
 
     @GetMapping("/my")

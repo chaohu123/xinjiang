@@ -89,27 +89,90 @@
                     <div class="day-divider"></div>
                   </div>
                   <h3 class="day-title">{{ item.title }}</h3>
-                  <p class="day-description">{{ item.description }}</p>
+                  <p class="day-description" style="white-space: pre-line;">{{ item.description }}</p>
+
+                  <!-- 时间轴展示 -->
+                  <div v-if="item.timeSchedule" class="time-schedule">
+                    <div class="schedule-header">
+                      <span class="schedule-icon">⏰</span>
+                      <span class="schedule-title">时间安排</span>
+                    </div>
+                    <div class="schedule-content" style="white-space: pre-line;">{{ item.timeSchedule }}</div>
+                  </div>
+
                   <div v-if="item.locations.length > 0" class="day-locations">
                     <div
                       v-for="(loc, locIndex) in item.locations"
                       :key="loc.name"
-                      class="location-tag"
+                      class="location-item"
                       :style="{ animationDelay: `${locIndex * 0.1}s` }"
                     >
-                      <span class="tag-icon">📍</span>
-                      <span class="tag-text">{{ loc.name }}</span>
+                      <div class="location-header">
+                        <span class="tag-icon">📍</span>
+                        <span class="tag-text">{{ loc.name }}</span>
+                      </div>
+                      <p v-if="loc.description" class="location-description" style="white-space: pre-line;">{{ loc.description }}</p>
+                      <div v-if="loc.lat && loc.lng" class="location-actions">
+                        <el-button
+                          text
+                          type="primary"
+                          size="small"
+                          @click="openGoogleMaps(loc.lat, loc.lng, loc.name)"
+                        >
+                          <el-icon><MapLocation /></el-icon>
+                          查看地图
+                        </el-button>
+                      </div>
                     </div>
                   </div>
+
+                  <!-- 每日预算汇总 -->
+                  <div v-if="item.dailyBudget" class="daily-budget">
+                    <div class="budget-header">
+                      <span class="budget-icon">💰</span>
+                      <span class="budget-title">每日预算</span>
+                    </div>
+                    <div class="budget-content" style="white-space: pre-line;">{{ item.dailyBudget }}</div>
+                  </div>
+
                   <div v-if="item.accommodation" class="day-extra">
                     <span class="extra-label">住宿：</span>
                     <span class="extra-value">{{ item.accommodation }}</span>
                   </div>
                   <div v-if="item.meals && item.meals.length > 0" class="day-extra">
                     <span class="extra-label">餐饮：</span>
-                    <span class="extra-value">{{ item.meals.join('、') }}</span>
+                    <div class="meals-list">
+                      <div v-for="(meal, mealIndex) in item.meals" :key="mealIndex" class="meal-item">
+                        {{ meal }}
+                      </div>
+                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 注意事项区域 -->
+          <div v-if="routeDetail.tips && routeDetail.tips.length > 0" class="route-tips-section">
+            <div class="tips-header">
+              <div class="header-decoration">
+                <div class="decoration-line left"></div>
+                <div class="decoration-icon">💡</div>
+                <h2>注意事项</h2>
+                <div class="decoration-icon">💡</div>
+                <div class="decoration-line right"></div>
+              </div>
+              <p class="tips-subtitle">出行前必读，让旅程更顺利</p>
+            </div>
+            <div class="tips-list">
+              <div
+                v-for="(tip, index) in routeDetail.tips"
+                :key="index"
+                class="tip-item"
+                :style="{ animationDelay: `${index * 0.1}s` }"
+              >
+                <div class="tip-icon">📌</div>
+                <div class="tip-content">{{ tip }}</div>
               </div>
             </div>
           </div>
@@ -125,6 +188,11 @@ import { useRoute } from 'vue-router'
 import { getRouteDetail } from '@/api/route'
 import type { RouteDetail } from '@/types/route'
 import { Clock, MapLocation, Location } from '@element-plus/icons-vue'
+
+const openGoogleMaps = (lat: number, lng: number, name: string) => {
+  const url = `https://maps.google.com/?q=${lat},${lng}`
+  window.open(url, '_blank')
+}
 
 const route = useRoute()
 const routeDetail = ref<RouteDetail | null>(null)
@@ -504,44 +572,128 @@ onMounted(() => {
             margin-bottom: 20px;
           }
 
+          // 时间轴展示
+          .time-schedule {
+            margin: 20px 0;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(0, 115, 230, 0.08), rgba(230, 176, 0, 0.08));
+            border: 1px solid rgba(0, 115, 230, 0.2);
+            border-radius: 12px;
+
+            .schedule-header {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 12px;
+
+              .schedule-icon {
+                font-size: 20px;
+              }
+
+              .schedule-title {
+                font-weight: 600;
+                font-size: 16px;
+                color: #303133;
+              }
+            }
+
+            .schedule-content {
+              font-size: 14px;
+              color: #606266;
+              line-height: 1.8;
+              padding-left: 28px;
+            }
+          }
+
+          // 每日预算
+          .daily-budget {
+            margin: 20px 0;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(103, 194, 58, 0.08), rgba(230, 176, 0, 0.08));
+            border: 1px solid rgba(103, 194, 58, 0.2);
+            border-radius: 12px;
+
+            .budget-header {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 12px;
+
+              .budget-icon {
+                font-size: 20px;
+              }
+
+              .budget-title {
+                font-weight: 600;
+                font-size: 16px;
+                color: #303133;
+              }
+            }
+
+            .budget-content {
+              font-size: 14px;
+              color: #606266;
+              line-height: 1.8;
+              padding-left: 28px;
+            }
+          }
+
           .day-locations {
             display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
+            flex-direction: column;
+            gap: 16px;
             margin-bottom: 16px;
 
-            .location-tag {
-              display: inline-flex;
-              align-items: center;
-              gap: 6px;
-              padding: 8px 16px;
-              background: linear-gradient(135deg, rgba(0, 115, 230, 0.1), rgba(230, 176, 0, 0.1));
+            .location-item {
+              padding: 16px;
+              background: linear-gradient(135deg, rgba(0, 115, 230, 0.05), rgba(230, 176, 0, 0.05));
               border: 1px solid rgba(230, 176, 0, 0.2);
-              border-radius: 20px;
-              font-size: 14px;
-              color: #303133;
+              border-radius: 12px;
               transition: all 0.3s ease;
               animation: fadeInScale 0.5s ease-out both;
 
               &:hover {
-                background: linear-gradient(135deg, rgba(0, 115, 230, 0.15), rgba(230, 176, 0, 0.15));
+                background: linear-gradient(135deg, rgba(0, 115, 230, 0.1), rgba(230, 176, 0, 0.1));
                 border-color: rgba(230, 176, 0, 0.4);
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(230, 176, 0, 0.2);
+                transform: translateX(4px);
+                box-shadow: 0 4px 12px rgba(230, 176, 0, 0.15);
               }
 
-              .tag-icon {
-                font-size: 16px;
+              .location-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+
+                .tag-icon {
+                  font-size: 18px;
+                }
+
+                .tag-text {
+                  font-weight: 600;
+                  font-size: 16px;
+                  color: #303133;
+                }
               }
 
-              .tag-text {
-                font-weight: 500;
+              .location-description {
+                font-size: 14px;
+                color: #606266;
+                line-height: 1.6;
+                margin: 0 0 12px 0;
+                white-space: pre-line;
+              }
+
+              .location-actions {
+                margin-top: 8px;
+                display: flex;
+                gap: 8px;
               }
             }
           }
 
           .day-extra {
-            padding: 12px 16px;
+            padding: 16px;
             background: rgba(0, 115, 230, 0.05);
             border-radius: 12px;
             font-size: 14px;
@@ -550,13 +702,130 @@ onMounted(() => {
             .extra-label {
               color: #909399;
               margin-right: 8px;
+              font-weight: 600;
             }
 
             .extra-value {
               color: #303133;
               font-weight: 500;
+              line-height: 1.6;
+            }
+
+            .meals-list {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              margin-top: 8px;
+
+              .meal-item {
+                padding: 8px 12px;
+                background: rgba(255, 255, 255, 0.6);
+                border-radius: 8px;
+                color: #303133;
+                line-height: 1.5;
+              }
             }
           }
+        }
+      }
+    }
+  }
+
+  // 注意事项区域
+  .route-tips-section {
+    margin-top: 60px;
+    padding-top: 40px;
+    border-top: 2px solid rgba(230, 176, 0, 0.1);
+
+    .tips-header {
+      text-align: center;
+      margin-bottom: 40px;
+
+      .header-decoration {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 12px;
+
+        .decoration-line {
+          flex: 1;
+          height: 2px;
+          max-width: 150px;
+          background: linear-gradient(
+            to right,
+            transparent,
+            #e6b000,
+            transparent
+          );
+
+          &.left {
+            background: linear-gradient(to right, transparent, #e6b000);
+          }
+
+          &.right {
+            background: linear-gradient(to left, transparent, #e6b000);
+          }
+        }
+
+        .decoration-icon {
+          font-size: 20px;
+          animation: twinkle 2s ease-in-out infinite;
+        }
+
+        h2 {
+          font-size: 32px;
+          font-weight: 700;
+          background: linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          margin: 0;
+        }
+      }
+
+      .tips-subtitle {
+        font-size: 16px;
+        color: #909399;
+        font-style: italic;
+      }
+    }
+
+    .tips-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+
+      .tip-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 20px;
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.08), rgba(255, 152, 0, 0.08));
+        border: 1px solid rgba(255, 193, 7, 0.2);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        animation: fadeInScale 0.5s ease-out both;
+
+        &:hover {
+          background: linear-gradient(135deg, rgba(255, 193, 7, 0.12), rgba(255, 152, 0, 0.12));
+          border-color: rgba(255, 193, 7, 0.4);
+          transform: translateY(-4px);
+          box-shadow: 0 8px 24px rgba(255, 193, 7, 0.2);
+        }
+
+        .tip-icon {
+          font-size: 24px;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .tip-content {
+          flex: 1;
+          font-size: 15px;
+          color: #303133;
+          line-height: 1.8;
+          font-weight: 500;
         }
       }
     }
@@ -686,6 +955,24 @@ onMounted(() => {
 
       .decoration-line {
         max-width: 80px;
+      }
+    }
+
+    .route-tips-section {
+      .tips-list {
+        grid-template-columns: 1fr;
+      }
+
+      .tips-header {
+        .header-decoration {
+          h2 {
+            font-size: 24px;
+          }
+
+          .decoration-line {
+            max-width: 60px;
+          }
+        }
       }
     }
   }

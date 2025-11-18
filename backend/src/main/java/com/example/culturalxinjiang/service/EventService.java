@@ -128,6 +128,7 @@ public class EventService {
                     EventResponse response = mapToResponse(event);
                     // 设置报名状态信息
                     response.setIsRegistered(true);
+                    response.setRegistrationStatus(registration.getStatus().name());
                     return response;
                 })
                 .collect(Collectors.toList());

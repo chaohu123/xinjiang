@@ -12,15 +12,7 @@ export const getRouteDetail = (id: number) => {
 }
 
 // 生成自定义路线
-export const generateRoute = (data: {
-  startLocation: string
-  endLocation: string
-  interests: string[]
-  peopleCount: number
-  budget: number
-  mustVisitLocations: string[]
-  duration: number
-}) => {
+export const generateRoute = (data: any) => {
   // AI 生成路线可能需要较长时间，设置 180 秒超时
   return request.post<RouteDetail>('/routes/generate', data, {
     timeout: 180000 // 180 秒

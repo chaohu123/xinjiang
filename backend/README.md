@@ -57,8 +57,15 @@
 
 ### 4. 路线推荐
 - **路线列表**：分页查询，支持主题筛选
-- **路线详情**：获取路线详细信息
-- **自定义路线**：根据用户偏好生成个性化路线
+- **路线详情**：获取路线详细信息，包括行程安排、地点坐标、交通、住宿、餐饮等
+- **AI智能路线生成**：
+  - 基于用户偏好（目的地、天数、预算、兴趣等）生成个性化路线
+  - 支持 DeepSeek AI 或 OpenAI 两种AI服务提供商
+  - 自动生成详细的每日行程安排、时间表、交通信息、预算建议
+  - 包含地点坐标信息，支持地图展示
+  - 生成路线自动保存到数据库
+  - 提供API调用调试信息（调用状态、响应时间、错误信息等）
+- **我的路线**：用户查看和管理自己生成的路线，支持删除操作
 - **主题分类**：支持不同主题的路线推荐
 
 ### 5. 社区互动
@@ -103,6 +110,20 @@
 - **文件存储**：本地文件系统存储（可扩展至云存储）
 - **访问路径**：`/api/uploads/**` 静态资源访问
 
+### 10. 数字图片服务
+- **数字图片访问**：提供数字图片资源的访问接口
+- **静态资源服务**：`/api/digital-images/{filename}` 访问数字图片
+- **文件类型检测**：自动检测文件MIME类型
+- **安全访问**：文件路径规范化，防止目录遍历攻击
+
+### 11. AI服务集成
+- **AI路线生成**：集成 DeepSeek 或 OpenAI API 生成智能旅游路线
+- **多AI提供商支持**：支持 DeepSeek 和 OpenAI 两种AI服务
+- **配置灵活**：通过配置文件选择AI提供商和API密钥
+- **超时控制**：可配置API调用超时时间（默认60秒）
+- **错误处理**：完善的错误处理和日志记录
+- **降级策略**：AI服务不可用时使用默认路线生成逻辑
+
 ---
 
 ## 🧩 项目结构
@@ -116,9 +137,10 @@ backend/
 │  │  ├─ UserController.java              # 用户相关
 │  │  ├─ CultureController.java           # 文化资源
 │  │  ├─ EventController.java             # 活动管理
-│  │  ├─ RouteController.java             # 路线推荐
+│  │  ├─ RouteController.java             # 路线推荐（含AI生成）
 │  │  ├─ CommunityController.java          # 社区互动
 │  │  ├─ CarouselController.java          # 轮播图
+│  │  ├─ DigitalImageController.java      # 数字图片服务
 │  │  ├─ AdminController.java             # 后台管理（用户、资源、投稿、推荐）
 │  │  └─ AdminEventController.java        # 后台活动管理
 │  │
@@ -127,7 +149,8 @@ backend/
 │  │  ├─ UserService.java
 │  │  ├─ CultureResourceService.java
 │  │  ├─ EventService.java
-│  │  ├─ RouteService.java
+│  │  ├─ RouteService.java                # 路线服务（含AI生成）
+│  │  ├─ AIService.java                   # AI服务（DeepSeek/OpenAI集成）
 │  │  ├─ CommunityService.java
 │  │  ├─ CarouselService.java
 │  │  ├─ FavoriteService.java
@@ -244,19 +267,50 @@ spring:
     port: 6379
 ```
 
-#### 2.4 AI 密钥配置（必须）
+#### 2.4 AI 服务配置（可选，用于AI路线生成功能）
 
-1. 复制 `src/main/resources/application-local.yml.example`，并重命名为 `application-local.yml`。
-2. 在新文件中把 `sk-your-deepseek-api-key` 替换为你的真实 DeepSeek Key（例如 `sk-0d2fc9960f654d7db1ef5bf8c7ef6642`）。该文件已在 `.gitignore` 中，不会被提交。
-3. 或者直接在终端设置环境变量：
-   - Windows PowerShell：`setx DEEPSEEK_API_KEY "sk-0d2fc9960f654d7db1ef5bf8c7ef6642"`
-   - macOS/Linux：`export DEEPSEEK_API_KEY="sk-0d2fc9960f654d7db1ef5bf8c7ef6642"`
-4. 启动本地时激活 `local` 配置：`mvn spring-boot:run -Dspring.profiles.active=local`
+AI路线生成功能支持 DeepSeek 和 OpenAI 两种AI服务提供商，默认使用 DeepSeek。
 
-> **安全提交建议**
-> - 提交前执行 `git status` 与 `git diff`，确认没有 `.env`、`application-local.yml` 等敏感文件。
-> - 使用 `git grep -n "sk-"` 检查仓库中是否残留密钥。
-> - 在 GitHub 仓库的 *Settings → Secrets and variables → Actions* 中配置 `DEEPSEEK_API_KEY`，CI/CD 或部署流程统一从 Secrets 读取。
+**方式一：通过配置文件配置**
+
+在 `application.yml` 或环境配置文件中添加：
+
+```yaml
+ai:
+  provider: deepseek  # 可选: deepseek 或 openai
+  deepseek:
+    api-key: your-deepseek-api-key
+    api-url: https://api.deepseek.com/v1/chat/completions
+    model: deepseek-chat
+    timeout: 60000  # 超时时间（毫秒）
+  openai:
+    api-key: your-openai-api-key
+    api-url: https://api.openai.com/v1/chat/completions
+    model: gpt-3.5-turbo
+```
+
+**方式二：通过环境变量配置**
+
+- Windows PowerShell：
+  ```powershell
+  setx AI_DEEPSEEK_API_KEY "your-deepseek-api-key"
+  setx AI_PROVIDER "deepseek"
+  ```
+- macOS/Linux：
+  ```bash
+  export AI_DEEPSEEK_API_KEY="your-deepseek-api-key"
+  export AI_PROVIDER="deepseek"
+  ```
+
+**获取API密钥**：
+- DeepSeek: 访问 [DeepSeek 开放平台](https://platform.deepseek.com/) 注册并获取API密钥
+- OpenAI: 访问 [OpenAI Platform](https://platform.openai.com/) 注册并获取API密钥
+
+> **注意**：如果未配置AI服务，路线生成功能将使用默认逻辑，不会调用AI API。
+> **安全建议**：
+> - 不要将API密钥提交到代码仓库
+> - 使用环境变量或配置文件（已加入.gitignore）管理密钥
+> - 生产环境建议使用密钥管理服务
 
 #### 2.5 运行应用
 
@@ -376,7 +430,9 @@ Authorization: Bearer <token>
 ### 路线管理
 - `GET /api/routes` - 获取路线列表（支持 `theme` 筛选）
 - `GET /api/routes/{id}` - 获取路线详情
-- `POST /api/routes/generate` - 生成自定义路线
+- `POST /api/routes/generate` - AI生成自定义路线（支持 DeepSeek/OpenAI）
+- `GET /api/routes/my` - 获取我的路线列表
+- `DELETE /api/routes/{id}` - 删除我的路线
 
 ### 社区功能
 - `GET /api/community/posts` - 获取帖子列表（支持 `sort` 排序）
@@ -401,6 +457,9 @@ Authorization: Bearer <token>
 - `PUT /api/carousel/{id}` - 更新轮播图（管理员）
 - `DELETE /api/carousel/{id}` - 删除轮播图（管理员）
 - `POST /api/carousel/upload` - 上传轮播图图片（管理员）
+
+### 数字图片
+- `GET /api/digital-images/{filename}` - 获取数字图片资源（公开）
 
 ### 管理端（需管理员权限）
 #### 用户管理
@@ -480,6 +539,33 @@ ALIYUN_BUCKET_NAME=your-bucket-name
 - `application.yml` - 主配置文件
 - `application-dev.yml` - 开发环境配置
 - `application-prod.yml` - 生产环境配置
+- `application-local.yml` - 本地开发配置（可选，需自行创建）
+
+### AI服务配置说明
+
+AI路线生成功能需要配置AI服务提供商和API密钥。配置项说明：
+
+```yaml
+ai:
+  provider: deepseek  # AI服务提供商: deepseek 或 openai
+  deepseek:
+    api-key: ${AI_DEEPSEEK_API_KEY:}  # DeepSeek API密钥
+    api-url: https://api.deepseek.com/v1/chat/completions
+    model: deepseek-chat
+    timeout: 60000  # API调用超时时间（毫秒）
+  openai:
+    api-key: ${AI_OPENAI_API_KEY:}  # OpenAI API密钥
+    api-url: https://api.openai.com/v1/chat/completions
+    model: gpt-3.5-turbo
+```
+
+**数字图片目录配置**：
+
+```yaml
+app:
+  static:
+    digital-images-dir: digital-images  # 数字图片存储目录
+```
 
 ---
 
