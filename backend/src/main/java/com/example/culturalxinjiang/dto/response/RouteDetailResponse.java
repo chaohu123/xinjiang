@@ -17,6 +17,8 @@ public class RouteDetailResponse extends RouteResponse {
     private List<ItineraryItem> itinerary;
     private List<RouteResource> resources;
     private List<String> tips;
+    private Boolean favorited;
+    private List<TimelineItem> timeline;
 
     @Data
     @NoArgsConstructor
@@ -52,6 +54,18 @@ public class RouteDetailResponse extends RouteResponse {
         private String title;
         private String cover;
         private Integer order;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TimelineItem {
+        private Integer day;
+        private String label;
+        private String startTime;
+        private String endTime;
+        private Integer stopCount;
+        private Double estimatedDistance;
     }
 }
 

@@ -16,6 +16,7 @@ import java.util.List;
 public class CultureResourceResponse {
     private Long id;
     private CultureResource.CultureType type;
+    private String resourceType;
     private String title;
     private String description;
     private String cover;
@@ -30,6 +31,8 @@ public class CultureResourceResponse {
     private Integer favorites;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String heritageLevel;
+    private String category;
 
     @Data
     @NoArgsConstructor

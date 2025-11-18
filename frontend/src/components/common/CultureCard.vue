@@ -75,6 +75,7 @@ const getTypeName = (type?: string) => {
     exhibit: '展品',
     video: '视频',
     audio: '音频',
+    heritage: '非遗',
   }
   return map[normalizedType] || type
 }
@@ -88,6 +89,7 @@ const getTypeColor = (type?: string) => {
     exhibit: 'success',
     video: 'warning',
     audio: 'info',
+    heritage: 'danger',
   }
   // 如果找不到匹配的类型，返回 'info' 作为默认值，而不是空字符串
   // Element Plus 的 ElTag 不接受空字符串作为 type 属性
@@ -96,17 +98,16 @@ const getTypeColor = (type?: string) => {
 
 const handleClick = () => {
   const resource = props.resource as any
-  // 如果是HomeResource，根据source跳转
-  if ('source' in resource) {
-    if (resource.source === 'CULTURE_RESOURCE') {
-      router.push(`/detail/${resource.resourceType?.toLowerCase() || 'article'}/${resource.id}`)
-    } else {
-      router.push(`/community/${resource.id}`)
-    }
-  } else {
-    // 传统的CultureResource
-    router.push(`/detail/${resource.type}/${resource.id}`)
+  const normalizedType = (resource.type || resource.resourceType || '').toLowerCase()
+  if ('source' in resource && resource.source === 'COMMUNITY_POST') {
+    router.push(`/community/${resource.id}`)
+    return
   }
+  if (normalizedType === 'heritage' || resource.resourceType === 'HERITAGE') {
+    router.push(`/heritage/${resource.id}`)
+    return
+  }
+  router.push(`/detail/${resource.type || 'article'}/${resource.id}`)
 }
 </script>
 

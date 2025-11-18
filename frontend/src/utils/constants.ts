@@ -4,6 +4,7 @@ export const CULTURE_TYPES = [
   { label: '展品', value: 'exhibit' },
   { label: '视频', value: 'video' },
   { label: '音频', value: 'audio' },
+  { label: '非遗', value: 'heritage' },
 ] as const
 
 // 地区列表
@@ -25,6 +26,20 @@ export const ROUTE_THEMES = [
   { label: '自然风光', value: 'nature', icon: 'Mountain' },
   { label: '文化体验', value: 'culture', icon: 'Reading' },
   { label: '美食之旅', value: 'food', icon: 'Food' },
+] as const
+
+// 非遗分类
+export const HERITAGE_CATEGORIES = [
+  { label: '表演艺术', value: '表演艺术' },
+  { label: '口头传统', value: '口头传统' },
+  { label: '传统技艺', value: '传统技艺' },
+] as const
+
+// 非遗级别
+export const HERITAGE_LEVELS = [
+  { label: '世界级', value: '世界级' },
+  { label: '国家级', value: '国家级' },
+  { label: '自治区级', value: '自治区级' },
 ] as const
 
 // 活动类型

@@ -1,6 +1,8 @@
 package com.example.culturalxinjiang.service;
 
+import com.example.culturalxinjiang.dto.request.AiExplainRequest;
 import com.example.culturalxinjiang.dto.request.GenerateRouteRequest;
+import com.example.culturalxinjiang.dto.response.AiExplainResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -86,9 +89,7 @@ public class AIService {
         try {
 
             // 检查API密钥是否配置
-            if (apiKey == null || apiKey.isEmpty() ||
-                apiKey.equals("your-deepseek-api-key") ||
-                apiKey.equals("your-openai-api-key")) {
+            if (isApiKeyMissing(apiKey)) {
                 log.warn("AI API密钥未配置（Provider: {}），使用默认路线生成逻辑", provider);
                 return generateDefaultRoute(request);
             }
@@ -900,6 +901,9 @@ public class AIService {
             return jsonContent;
         }
 
+        // 统一去掉 Markdown 代码块围栏（无论 parse 阶段是否处理过）
+        jsonContent = stripCodeFences(jsonContent);
+
         // 移除可能的 BOM 标记
         if (jsonContent.startsWith("\uFEFF")) {
             jsonContent = jsonContent.substring(1);
@@ -973,6 +977,25 @@ public class AIService {
             log.debug("清理后的 JSON 内容: {}", jsonContent);
             throw new RuntimeException("JSON 格式错误，无法解析: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 去掉前后 ```json/``` 包裹，兼容 ```JSON、``` 等不同写法
+     */
+    private String stripCodeFences(String raw) {
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("```")) {
+            int firstLineBreak = trimmed.indexOf('\n');
+            if (firstLineBreak > 0) {
+                trimmed = trimmed.substring(firstLineBreak + 1);
+            } else {
+                trimmed = trimmed.substring(3);
+            }
+        }
+        if (trimmed.endsWith("```")) {
+            trimmed = trimmed.substring(0, trimmed.lastIndexOf("```"));
+        }
+        return trimmed.trim();
     }
 
     /**
@@ -1201,6 +1224,190 @@ public class AIService {
         response.setTips(tips);
 
         return response;
+    }
+
+    /**
+     * AI文化讲解助手
+     */
+    public AiExplainResponse explainCulture(AiExplainRequest request) {
+        String apiKey;
+        String apiUrl;
+        String model;
+        String providerName;
+
+        if ("deepseek".equalsIgnoreCase(provider)) {
+            apiKey = deepseekApiKey;
+            apiUrl = deepseekApiUrl;
+            model = deepseekModel;
+            providerName = "DeepSeek";
+        } else {
+            apiKey = openaiApiKey;
+            apiUrl = openaiApiUrl;
+            model = openaiModel;
+            providerName = "OpenAI";
+        }
+
+        if (isApiKeyMissing(apiKey)) {
+            log.warn("AI讲解使用默认逻辑，原因：{} API key 未配置", providerName);
+            return buildLocalExplanation(request);
+        }
+
+        try {
+            String prompt = buildExplainPrompt(request);
+
+            OpenAIRequest aiRequest = new OpenAIRequest();
+            aiRequest.setModel(model);
+            OpenAIRequest.Message system = new OpenAIRequest.Message();
+            system.setRole("system");
+            system.setContent("你是新疆数字文化平台的高级讲解员，需要以学术而生动的语言讲述新疆文化。");
+            OpenAIRequest.Message message = new OpenAIRequest.Message();
+            message.setRole("user");
+            message.setContent(prompt);
+            aiRequest.setMessages(List.of(system, message));
+            aiRequest.setTemperature(0.4);
+            aiRequest.setMaxTokens(2000);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+
+            ResponseEntity<OpenAIResponse> responseEntity = restTemplate.exchange(
+                    apiUrl,
+                    HttpMethod.POST,
+                    new HttpEntity<>(aiRequest, headers),
+                    OpenAIResponse.class
+            );
+
+            OpenAIResponse body = responseEntity.getBody();
+            if (body == null || body.getChoices() == null || body.getChoices().isEmpty()) {
+                throw new RuntimeException("AI讲解返回空响应");
+            }
+
+            String content = body.getChoices().get(0).getMessage().getContent();
+            return parseExplainResponse(content, request);
+        } catch (Exception e) {
+            log.error("AI讲解接口调用失败: {}", e.getMessage(), e);
+            return buildLocalExplanation(request);
+        }
+    }
+
+    private String buildExplainPrompt(AiExplainRequest request) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("请以资深新疆文化讲解员身份，对以下内容进行深入介绍。");
+        if (StringUtils.hasText(request.getQuery())) {
+            prompt.append("\n主题：").append(request.getQuery());
+        }
+        if (StringUtils.hasText(request.getContext())) {
+            prompt.append("\n补充背景：").append(request.getContext());
+        }
+        if (StringUtils.hasText(request.getImageUrl())) {
+            prompt.append("\n用户提供了图像链接（可用于推测展品）：").append(request.getImageUrl());
+        }
+        if (StringUtils.hasText(request.getAudience())) {
+            prompt.append("\n目标受众：").append(request.getAudience());
+            prompt.append("。请根据该受众的知识结构与兴趣点调整讲解视角与案例。");
+        }
+        if (StringUtils.hasText(request.getTone())) {
+            prompt.append("\n讲解风格偏好：").append(request.getTone());
+        }
+        if (StringUtils.hasText(request.getLength())) {
+            switch (request.getLength()) {
+                case "short" -> prompt.append("\n篇幅要求：浓缩为 200-300 字，突出核心史料与结论。");
+                case "detailed" -> prompt.append("\n篇幅要求：不少于 500 字，需包含历史脉络、艺术特征、传承现状与互动提问。");
+                default -> prompt.append("\n篇幅要求：约 350-400 字，兼顾信息密度与可读性。");
+            }
+        } else {
+            prompt.append("\n篇幅要求：约 350-400 字，兼顾信息密度与可读性。");
+        }
+        if (request.getFocusPoints() != null && !request.getFocusPoints().isEmpty()) {
+            prompt.append("\n重点请围绕以下维度展开：")
+                    .append(String.join("、", request.getFocusPoints()))
+                    .append("，并给出与这些维度相关的例证。");
+        }
+        prompt.append("\n请按照 JSON 输出：");
+        prompt.append("{\"title\":\"简洁标题\",\"summary\":\"300字概述\",\"highlights\":[\"要点1\",\"要点2\"],");
+        prompt.append("\"references\":[\"出处1\",\"出处2\"],\"mediaInsight\":\"如果有图像，描述图像细节及文化意义\"}");
+        prompt.append("\n必须使用中文输出，兼顾学术性与可读性。");
+        return prompt.toString();
+    }
+
+    private AiExplainResponse parseExplainResponse(String content, AiExplainRequest request) {
+        try {
+            String jsonContent = extractJsonBlock(content);
+            String cleaned = cleanJsonContent(jsonContent);
+            JsonNode rootNode = objectMapper.readTree(cleaned);
+            return AiExplainResponse.builder()
+                    .title(rootNode.hasNonNull("title") ? rootNode.get("title").asText() : fallbackTitle(request))
+                    .summary(rootNode.hasNonNull("summary") ? rootNode.get("summary").asText() : defaultSummary(request))
+                    .highlights(rootNode.has("highlights") && rootNode.get("highlights").isArray()
+                            ? objectMapper.convertValue(rootNode.get("highlights"), objectMapper.getTypeFactory().constructCollectionType(List.class, String.class))
+                            : List.of("新疆文化底蕴深厚，建议结合多媒体内容进行沉浸式体验。"))
+                    .references(rootNode.has("references") && rootNode.get("references").isArray()
+                            ? objectMapper.convertValue(rootNode.get("references"), objectMapper.getTypeFactory().constructCollectionType(List.class, String.class))
+                            : List.of("新疆数字文化平台·AI助手"))
+                    .mediaInsight(rootNode.hasNonNull("mediaInsight") ? rootNode.get("mediaInsight").asText()
+                            : "如果有相关展品图像，可从纹理、工艺、色彩等角度进行讲解。")
+                    .build();
+        } catch (Exception e) {
+            log.warn("解析AI讲解响应失败，使用本地降级内容: {}", e.getMessage());
+            return buildLocalExplanation(request);
+        }
+    }
+
+    private String extractJsonBlock(String content) {
+        String trimmed = content != null ? content.trim() : "";
+        if (trimmed.contains("```json")) {
+            int start = trimmed.indexOf("```json") + 7;
+            int end = trimmed.indexOf("```", start);
+            if (end > start) {
+                return trimmed.substring(start, end);
+            }
+        } else if (trimmed.startsWith("{")) {
+            return trimmed;
+        }
+        int firstBrace = trimmed.indexOf('{');
+        int lastBrace = trimmed.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            return trimmed.substring(firstBrace, lastBrace + 1);
+        }
+        return "{\"title\":\"新疆文化讲解\",\"summary\":\"" + trimmed + "\"}";
+    }
+
+    private AiExplainResponse buildLocalExplanation(AiExplainRequest request) {
+        return AiExplainResponse.builder()
+                .title(fallbackTitle(request))
+                .summary(defaultSummary(request))
+                .highlights(List.of(
+                        "新疆拥有多民族交融的文化形态，可结合音乐、舞蹈、手工艺进行展示。",
+                        "建议关联平台内的非遗专题与地图地标，形成沉浸式体验。"))
+                .references(List.of("新疆数字文化平台内容库"))
+                .mediaInsight(StringUtils.hasText(request.getImageUrl())
+                        ? "图像可重点描述纹理、颜色与工艺特征，引导用户放大细节观察。"
+                        : "可配合权威图片或3D模型，增强理解体验。")
+                .build();
+    }
+
+    private String fallbackTitle(AiExplainRequest request) {
+        if (StringUtils.hasText(request.getQuery())) {
+            return request.getQuery() + " · 新疆文化解读";
+        }
+        return "新疆文化讲解";
+    }
+
+    private String defaultSummary(AiExplainRequest request) {
+        if (StringUtils.hasText(request.getQuery())) {
+            return "围绕“" + request.getQuery() + "”的核心元素，介绍其历史背景、艺术价值与在新疆文化体系中的地位。";
+        }
+        return "通过AI助手介绍新疆代表性文化内容，涵盖历史沿革、地域特色及现代传承路径。";
+    }
+
+    private boolean isApiKeyMissing(String apiKey) {
+        if (!StringUtils.hasText(apiKey)) {
+            return true;
+        }
+        String normalized = apiKey.trim();
+        return "your-deepseek-api-key".equalsIgnoreCase(normalized)
+                || "your-openai-api-key".equalsIgnoreCase(normalized);
     }
 
     // DTO类

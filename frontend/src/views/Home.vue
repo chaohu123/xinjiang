@@ -49,6 +49,30 @@
       </div>
     </section>
 
+    <section class="section section-alt" v-if="heritageItems.length">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">非遗精选</h2>
+          <el-button link @click="$router.push('/heritage')">
+            走进更多非遗 <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </div>
+        <div v-loading="heritageLoading" class="heritage-mini-grid">
+          <el-card v-for="item in heritageItems" :key="item.id" class="heritage-mini-card" @click="$router.push(`/heritage/${item.id}`)">
+            <el-image :src="item.cover || item.images?.[0]" fit="cover" class="mini-image" />
+            <div class="mini-body">
+              <div class="mini-meta">
+                <el-tag size="small" effect="dark">{{ item.heritageLevel }}</el-tag>
+                <span>{{ item.region }}</span>
+              </div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.description }}</p>
+            </div>
+          </el-card>
+        </div>
+      </div>
+    </section>
+
     <!-- Hot Resources Section -->
     <section class="section section-alt">
       <div class="container">
@@ -59,6 +83,20 @@
         </div>
         <div v-loading="hotLoading" class="resources-grid">
           <CultureCard v-for="item in hotResources" :key="item.id" :resource="item" />
+        </div>
+      </div>
+    </section>
+
+    <section class="section" v-if="personalResources.length">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">为你推荐</h2>
+          <el-button link @click="$router.push('/search')">
+            {{ $t('common.more') }} <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </div>
+        <div v-loading="personalLoading" class="resources-grid">
+          <CultureCard v-for="item in personalResources" :key="`personal-${item.id}`" :resource="item" />
         </div>
       </div>
     </section>
@@ -110,8 +148,11 @@ import { ref, onMounted } from 'vue'
 import { getRecommendedResources, getHotResources } from '@/api/culture'
 import { getLatestEvents } from '@/api/event'
 import { getCarousels } from '@/api/carousel'
+import { getHeritageRecommendations } from '@/api/heritage'
+import { getRecommendationsFeed } from '@/api/recommendation'
 import type { CultureResource, HomeResource } from '@/types/culture'
 import type { Event } from '@/types/event'
+import type { HeritageItem } from '@/types/heritage'
 import type { CarouselItem } from '@/types/carousel'
 import CultureCard from '@/components/common/CultureCard.vue'
 import Carousel from '@/components/common/Carousel.vue'
@@ -120,12 +161,16 @@ import { ArrowRight, Calendar, Location } from '@element-plus/icons-vue'
 
 const featuredResources = ref<HomeResource[]>([])
 const hotResources = ref<HomeResource[]>([])
+const personalResources = ref<HomeResource[]>([])
 const latestEvents = ref<Event[]>([])
+const heritageItems = ref<HeritageItem[]>([])
 const carouselItems = ref<CarouselItem[]>([])
 const featuredLoading = ref(false)
 const hotLoading = ref(false)
+const personalLoading = ref(false)
 const eventsLoading = ref(false)
 const carouselLoading = ref(false)
+const heritageLoading = ref(false)
 
 // 快速导航配置
 // 注意：图标名称使用字符串，因为图标已在 main.ts 中全局注册
@@ -164,14 +209,18 @@ const loadData = async () => {
   try {
     featuredLoading.value = true
     hotLoading.value = true
+    personalLoading.value = true
+    heritageLoading.value = true
     eventsLoading.value = true
     carouselLoading.value = true
 
-    const [featured, hot, events, carousels] = await Promise.all([
+    const [featured, hot, events, carousels, heritage, personal] = await Promise.all([
       getRecommendedResources(8).catch(() => []),
       getHotResources(8).catch(() => []),
       getLatestEvents({ page: 1, size: 4 }).catch(() => ({ list: [] as Event[], total: 0 })),
       getCarousels().catch(() => [] as CarouselItem[]),
+      getHeritageRecommendations(4).catch(() => []),
+      getRecommendationsFeed(6).catch(() => []),
     ])
 
     featuredResources.value = Array.isArray(featured) ? featured : []
@@ -182,6 +231,8 @@ const loadData = async () => {
     } else {
       latestEvents.value = []
     }
+    heritageItems.value = Array.isArray(heritage) ? heritage : []
+    personalResources.value = Array.isArray(personal) ? personal : []
     // 只显示启用的轮播图，并按 order 排序
     const carouselsData = Array.isArray(carousels) ? (carousels as CarouselItem[]) : []
     carouselItems.value = carouselsData
@@ -192,13 +243,17 @@ const loadData = async () => {
     // 确保即使出错也设置默认值
     featuredResources.value = []
     hotResources.value = []
+    heritageItems.value = []
+    personalResources.value = []
     latestEvents.value = []
     carouselItems.value = []
   } finally {
     featuredLoading.value = false
     hotLoading.value = false
+    personalLoading.value = false
     eventsLoading.value = false
     carouselLoading.value = false
+    heritageLoading.value = false
   }
 }
 
@@ -490,11 +545,13 @@ onMounted(() => {
 }
 
 .quick-nav-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
   gap: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  flex-wrap: nowrap;
 }
 
 .quick-nav-card {
@@ -509,6 +566,8 @@ onMounted(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  flex: 1 1 0;
+  min-width: 220px;
 
   &::before {
     content: '';
@@ -600,6 +659,45 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
+}
+
+.heritage-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.heritage-mini-card {
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+
+  .mini-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .mini-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #909399;
+    margin-bottom: 4px;
+  }
+
+  h3 {
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  p {
+    font-size: 13px;
+    color: #606266;
+    line-height: 1.4;
+  }
 }
 
 .events-list {
@@ -804,13 +902,16 @@ onMounted(() => {
   }
 
   .quick-nav-grid {
-    grid-template-columns: repeat(2, 1fr);
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 16px;
   }
 
   .quick-nav-card {
     padding: 16px;
     gap: 12px;
+    flex: 1 1 calc(50% - 16px);
+    min-width: 200px;
   }
 
   .quick-nav-icon {
@@ -878,12 +979,15 @@ onMounted(() => {
   }
 
   .quick-nav-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 12px;
   }
 
   .quick-nav-card {
     padding: 14px;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: auto;
   }
 
   .section {

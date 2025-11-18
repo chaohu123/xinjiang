@@ -29,6 +29,14 @@ export const deleteMyRoute = (id: number) => {
   return request.delete(`/routes/${id}`)
 }
 
+export const favoriteRoute = (id: number) => {
+  return request.post(`/routes/${id}/favorite`)
+}
+
+export const unfavoriteRoute = (id: number) => {
+  return request.delete(`/routes/${id}/favorite`)
+}
+
 
 
 

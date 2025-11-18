@@ -82,6 +82,15 @@
 
           <EmptyState v-if="!loading && results.length === 0" :text="$t('search.noResults')" />
 
+        <section v-if="heritageHighlights.length" class="heritage-highlight">
+          <div class="section-header">
+            <h3>非遗内容推荐</h3>
+          </div>
+          <div class="results-grid">
+            <CultureCard v-for="item in heritageHighlights" :key="`h-${item.id}`" :resource="item" />
+          </div>
+        </section>
+
           <el-pagination
             v-if="total > 0"
             v-model:current-page="currentPage"
@@ -118,6 +127,7 @@ const filters = ref({
 const tagInput = ref('')
 const sortBy = ref('latest')
 const results = ref<CultureResource[]>([])
+const heritageHighlights = ref<CultureResource[]>([])
 const loading = ref(false)
 const total = ref(0)
 const currentPage = ref(1)
@@ -158,6 +168,10 @@ const handleSearch = async () => {
     })
     results.value = response.list
     total.value = response.total
+    heritageHighlights.value =
+      filters.value.type.includes('heritage') || response.extra?.heritageOnly
+        ? []
+        : ((response.extra?.heritage as CultureResource[]) || [])
   } catch (error) {
     console.error('Search failed:', error)
   } finally {
@@ -263,6 +277,22 @@ watch(
   display: flex;
   justify-content: center;
   margin-top: 40px;
+}
+
+.heritage-highlight {
+  margin-top: 40px;
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h3 {
+      font-size: 22px;
+      color: #303133;
+    }
+  }
 }
 
 @media (max-width: 768px) {

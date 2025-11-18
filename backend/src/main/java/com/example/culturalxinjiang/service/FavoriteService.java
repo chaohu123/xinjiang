@@ -1,6 +1,7 @@
 package com.example.culturalxinjiang.service;
 
 import com.example.culturalxinjiang.dto.response.CultureResourceResponse;
+import com.example.culturalxinjiang.dto.response.FavoriteItemResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.entity.Favorite;
@@ -16,11 +17,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +36,8 @@ public class FavoriteService {
     private final CultureResourceRepository cultureResourceRepository;
     private final RouteRepository routeRepository;
     private final CommunityPostRepository communityPostRepository;
+    @Value("${app.routes.default-cover:/digital-images/route.jpg}")
+    private String defaultRouteCover;
 
     @Transactional
     public void favoriteResource(Favorite.ResourceType resourceType, Long resourceId) {
@@ -93,25 +99,71 @@ public class FavoriteService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<CultureResourceResponse> getFavorites(Integer page, Integer size) {
+    public PageResponse<FavoriteItemResponse> getFavorites(Integer page, Integer size) {
         User user = getCurrentUser();
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Favorite> favoritePage = favoriteRepository.findByUserId(user.getId(), pageable);
+        List<Favorite.ResourceType> resourceTypes = Arrays.asList(Favorite.ResourceType.CULTURE, Favorite.ResourceType.ROUTE);
+        Page<Favorite> favoritePage = favoriteRepository.findByUserIdAndResourceTypeIn(user.getId(), resourceTypes, pageable);
 
-        List<CultureResourceResponse> responses = favoritePage.getContent().stream()
-                .filter(f -> f.getResourceType() == Favorite.ResourceType.CULTURE)
-                .map(f -> {
-                    CultureResource resource = cultureResourceRepository.findById(f.getResourceId())
-                            .orElse(null);
-                    if (resource != null) {
-                        return mapToResponse(resource);
-                    }
-                    return null;
-                })
-                .filter(r -> r != null)
+        List<FavoriteItemResponse> responses = favoritePage.getContent().stream()
+                .map(this::mapFavoriteItem)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         return PageResponse.of(responses, favoritePage.getTotalElements(), page, size);
+    }
+
+    private FavoriteItemResponse mapFavoriteItem(Favorite favorite) {
+        if (favorite.getResourceType() == Favorite.ResourceType.CULTURE) {
+            return cultureResourceRepository.findById(favorite.getResourceId())
+                    .map(this::mapCultureFavorite)
+                    .orElse(null);
+        }
+
+        if (favorite.getResourceType() == Favorite.ResourceType.ROUTE) {
+            return routeRepository.findById(favorite.getResourceId())
+                    .map(this::mapRouteFavorite)
+                    .orElse(null);
+        }
+
+        return null;
+    }
+
+    private FavoriteItemResponse mapCultureFavorite(CultureResource resource) {
+        CultureResourceResponse response = mapToResponse(resource);
+        return FavoriteItemResponse.builder()
+                .id(response.getId())
+                .resourceType(Favorite.ResourceType.CULTURE)
+                .title(response.getTitle())
+                .description(response.getDescription())
+                .cover(response.getCover())
+                .region(response.getRegion())
+                .type(response.getType() != null ? response.getType().name().toLowerCase() : null)
+                .favorites(response.getFavorites())
+                .build();
+    }
+
+    private FavoriteItemResponse mapRouteFavorite(Route route) {
+        return FavoriteItemResponse.builder()
+                .id(route.getId())
+                .resourceType(Favorite.ResourceType.ROUTE)
+                .title(route.getTitle())
+                .description(route.getDescription())
+                .cover(resolveRouteCover(route.getCover()))
+                .startLocation(route.getStartLocation())
+                .endLocation(route.getEndLocation())
+                .duration(route.getDuration())
+                .distance(route.getDistance())
+                .favorites(route.getFavorites())
+                .theme(route.getTheme())
+                .build();
+    }
+
+    private String resolveRouteCover(String cover) {
+        if (cover == null || cover.isBlank()) {
+            return defaultRouteCover;
+        }
+        return cover;
     }
 
     private User getCurrentUser() {
@@ -138,6 +190,7 @@ public class FavoriteService {
         return CultureResourceResponse.builder()
                 .id(resource.getId())
                 .type(resource.getType())
+                .resourceType("CULTURE")
                 .title(resource.getTitle())
                 .description(resource.getDescription())
                 .cover(resource.getCover())
@@ -152,6 +205,7 @@ public class FavoriteService {
                 .favorites(resource.getFavorites())
                 .createdAt(resource.getCreatedAt())
                 .updatedAt(resource.getUpdatedAt())
+                .category(resource.getType() != null ? resource.getType().name() : null)
                 .build();
     }
 }

@@ -1,6 +1,7 @@
 package com.example.culturalxinjiang.controller;
 
 import com.example.culturalxinjiang.dto.response.ApiResponse;
+import com.example.culturalxinjiang.dto.response.EventCalendarResponse;
 import com.example.culturalxinjiang.dto.response.EventDetailResponse;
 import com.example.culturalxinjiang.dto.response.EventResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
@@ -41,6 +42,13 @@ public class EventController {
     public ApiResponse<EventDetailResponse> getEventDetail(@PathVariable Long id) {
         EventDetailResponse response = eventService.getEventDetail(id);
         return ApiResponse.success(response);
+    }
+
+    @GetMapping("/calendar")
+    public ApiResponse<EventCalendarResponse> getCalendar(
+            @RequestParam(required = false) String month
+    ) {
+        return ApiResponse.success(eventService.getCalendar(month));
     }
 
     @PostMapping("/{id}/register")

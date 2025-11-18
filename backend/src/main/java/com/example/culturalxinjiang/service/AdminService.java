@@ -307,6 +307,7 @@ public class AdminService {
         return CultureResourceResponse.builder()
                 .id(resource.getId())
                 .type(resource.getType())
+                .resourceType("CULTURE")
                 .title(resource.getTitle())
                 .description(resource.getDescription())
                 .cover(resource.getCover())
@@ -321,6 +322,7 @@ public class AdminService {
                 .favorites(resource.getFavorites())
                 .createdAt(resource.getCreatedAt())
                 .updatedAt(resource.getUpdatedAt())
+                .category(resource.getType() != null ? resource.getType().name() : null)
                 .build();
     }
 

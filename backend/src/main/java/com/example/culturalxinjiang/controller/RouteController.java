@@ -5,6 +5,8 @@ import com.example.culturalxinjiang.dto.response.ApiResponse;
 import com.example.culturalxinjiang.dto.response.RouteDetailResponse;
 import com.example.culturalxinjiang.dto.response.RouteResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
+import com.example.culturalxinjiang.entity.Favorite;
+import com.example.culturalxinjiang.service.FavoriteService;
 import com.example.culturalxinjiang.service.RouteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class RouteController {
 
     private final RouteService routeService;
+    private final FavoriteService favoriteService;
 
     @GetMapping
     public ApiResponse<PageResponse<RouteResponse>> getRoutes(
@@ -31,6 +34,18 @@ public class RouteController {
     public ApiResponse<RouteDetailResponse> getRouteDetail(@PathVariable Long id) {
         RouteDetailResponse response = routeService.getRouteDetail(id);
         return ApiResponse.success(response);
+    }
+
+    @PostMapping("/{id}/favorite")
+    public ApiResponse<Void> favoriteRoute(@PathVariable Long id) {
+        favoriteService.favoriteResource(Favorite.ResourceType.ROUTE, id);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/{id}/favorite")
+    public ApiResponse<Void> unfavoriteRoute(@PathVariable Long id) {
+        favoriteService.unfavoriteResource(Favorite.ResourceType.ROUTE, id);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/generate")

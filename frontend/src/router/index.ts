@@ -23,6 +23,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '搜索', transition: 'fade' },
       },
       {
+        path: 'heritage',
+        name: 'Heritage',
+        component: () => import('@/views/Heritage.vue'),
+        meta: { title: '非遗专题', transition: 'fade' },
+      },
+      {
+        path: 'heritage/:id',
+        name: 'HeritageDetail',
+        component: () => import('@/views/HeritageDetail.vue'),
+        meta: { title: '非遗详情', transition: 'fade' },
+      },
+      {
         path: 'detail/:type/:id',
         name: 'Detail',
         component: () => import('@/views/Detail.vue'),
@@ -71,6 +83,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '社区投稿', transition: 'fade' },
       },
       {
+        path: 'ai-explain',
+        name: 'AiExplain',
+        component: () => import('@/views/AiExplain.vue'),
+        meta: { title: 'AI讲解助手', transition: 'fade' },
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
@@ -107,6 +125,12 @@ const routes: RouteRecordRaw[] = [
         name: 'AdminCulture',
         component: () => import('@/views/admin/AdminCulture.vue'),
         meta: { title: '文化资源管理' },
+      },
+      {
+        path: 'heritage',
+        name: 'AdminHeritage',
+        component: () => import('@/views/admin/AdminHeritage.vue'),
+        meta: { title: '非遗资源管理' },
       },
       {
         path: 'events',

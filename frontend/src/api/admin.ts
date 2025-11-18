@@ -1,6 +1,7 @@
 import request from '@/utils/axios'
 import type { UserInfo } from '@/types/user'
 import type { CultureResource, CultureType, HomeResource } from '@/types/culture'
+import type { HeritageItem } from '@/types/heritage'
 import type { Event, EventDetail } from '@/types/event'
 import type { CommunityPost } from '@/types/community'
 
@@ -74,6 +75,51 @@ export const uploadCultureMedia = (file: File) => {
       'Content-Type': 'multipart/form-data',
     },
   })
+}
+
+// ==================== 非遗资源管理 ====================
+export interface HeritageListResponse {
+  list: HeritageItem[]
+  total: number
+  page: number
+  size: number
+}
+
+export interface HeritageRequestPayload {
+  title: string
+  region: string
+  category: string
+  cover?: string
+  images?: string[]
+  description?: string
+  content?: string
+  videoUrl?: string
+  heritageLevel: string
+  tags?: string[]
+  featured?: boolean
+}
+
+export const getAdminHeritageItems = (params?: {
+  page?: number
+  size?: number
+  keyword?: string
+  region?: string
+  heritageLevel?: string
+  category?: string
+}) => {
+  return request.get<HeritageListResponse>('/admin/heritage', { params })
+}
+
+export const createHeritageItem = (data: HeritageRequestPayload) => {
+  return request.post<HeritageItem>('/admin/heritage', data)
+}
+
+export const updateHeritageItem = (id: number, data: HeritageRequestPayload) => {
+  return request.put<HeritageItem>(`/admin/heritage/${id}`, data)
+}
+
+export const deleteHeritageItem = (id: number) => {
+  return request.delete(`/admin/heritage/${id}`)
 }
 
 // ==================== 活动管理 ====================

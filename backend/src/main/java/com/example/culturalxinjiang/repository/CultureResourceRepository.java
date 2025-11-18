@@ -12,7 +12,7 @@ import java.util.List;
 
 @Repository
 public interface CultureResourceRepository extends JpaRepository<CultureResource, Long> {
-    
+
     @Query("SELECT c FROM CultureResource c WHERE " +
            "(:keyword IS NULL OR c.title LIKE %:keyword% OR c.description LIKE %:keyword%) AND " +
            "(:type IS NULL OR c.type = :type) AND " +
@@ -29,9 +29,12 @@ public interface CultureResourceRepository extends JpaRepository<CultureResource
 
     List<CultureResource> findTop10ByOrderByViewsDesc();
     List<CultureResource> findTop10ByOrderByFavoritesDesc();
-    
+
     Page<CultureResource> findByType(CultureResource.CultureType type, Pageable pageable);
     Page<CultureResource> findByRegion(String region, Pageable pageable);
+
+    @Query("SELECT c FROM CultureResource c WHERE c.location.lat IS NOT NULL AND c.location.lng IS NOT NULL")
+    List<CultureResource> findAllWithLocation();
 }
 
 

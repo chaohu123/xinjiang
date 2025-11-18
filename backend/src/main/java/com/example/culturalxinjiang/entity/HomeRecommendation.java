@@ -58,7 +58,8 @@ public class HomeRecommendation {
 
     public enum ResourceSource {
         CULTURE_RESOURCE,  // 文化资源
-        COMMUNITY_POST     // 社区投稿
+        COMMUNITY_POST,    // 社区投稿
+        HERITAGE_ITEM      // 非遗资源
     }
 }
 

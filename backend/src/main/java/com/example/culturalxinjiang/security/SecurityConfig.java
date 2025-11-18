@@ -81,6 +81,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/culture/**").permitAll()
+                        .requestMatchers("/heritage/**").permitAll()
+                        .requestMatchers("/ai/**").permitAll()
+                        .requestMatchers("/map/**").permitAll()
+                        .requestMatchers("/recommendations/**").permitAll()
                         .requestMatchers("/events").permitAll()
                         .requestMatchers("/events/**").permitAll()
                         .requestMatchers("/routes").permitAll() // 获取路线列表（示例路线）

@@ -1,8 +1,9 @@
-export type CultureType = 'article' | 'exhibit' | 'video' | 'audio'
+export type CultureType = 'article' | 'exhibit' | 'video' | 'audio' | 'heritage'
 
 export interface CultureResource {
   id: number
   type: CultureType
+  resourceType?: string
   title: string
   description: string
   cover: string
@@ -21,6 +22,8 @@ export interface CultureResource {
   favorites: number
   createdAt: string
   updatedAt: string
+  heritageLevel?: string
+  category?: string
 }
 
 // 首页资源响应（可能来自文化资源或社区投稿）

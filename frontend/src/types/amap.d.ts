@@ -48,6 +48,26 @@ declare namespace AMap {
     off(event: string, callback: (e?: any) => void): void
   }
 
+  class Polyline {
+    constructor(opts?: PolylineOptions)
+    setPath(path: Array<[number, number]>): void
+    setMap(map: Map | null): void
+  }
+
+  interface PolylineOptions {
+    path?: Array<[number, number]>
+    strokeColor?: string
+    strokeWeight?: number
+    strokeOpacity?: number
+  }
+
+  class MarkerClusterer {
+    constructor(map: Map, markers: Marker[], opts?: Record<string, any>)
+    setMap(map: Map | null): void
+    addMarkers(markers: Marker[]): void
+    removeMarkers(markers: Marker[]): void
+  }
+
   interface MarkerOptions {
     position?: [number, number] | LngLat
     title?: string

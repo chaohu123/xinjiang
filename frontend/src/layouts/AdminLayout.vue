@@ -32,6 +32,10 @@
           <el-icon><Document /></el-icon>
           <template #title> 文化资源管理 </template>
         </el-menu-item>
+        <el-menu-item index="/admin/heritage">
+          <el-icon><CollectionTag /></el-icon>
+          <template #title> 非遗资源管理 </template>
+        </el-menu-item>
         <el-menu-item index="/admin/events">
           <el-icon><Calendar /></el-icon>
           <template #title> 活动管理 </template>
@@ -93,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import {
@@ -109,6 +113,7 @@ import {
   ArrowDown,
   HomeFilled,
   SwitchButton,
+  CollectionTag,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { onBeforeMount } from 'vue'
@@ -125,6 +130,7 @@ const pageTitleMap: Record<string, string> = {
   '/admin/users': '用户管理',
   '/admin/carousels': '轮播图管理',
   '/admin/culture': '文化资源管理',
+  '/admin/heritage': '非遗资源管理',
   '/admin/events': '活动管理',
   '/admin/posts': '社区投稿审核',
   '/admin/recommendations': '首页推荐配置',

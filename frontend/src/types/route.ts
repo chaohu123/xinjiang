@@ -18,6 +18,8 @@ export interface RouteDetail extends Route {
   itinerary: ItineraryItem[]
   resources: RouteResource[]
   tips?: string[]
+  favorited?: boolean
+  timeline?: RouteTimelineItem[]
 }
 
 export interface ItineraryItem {
@@ -46,6 +48,15 @@ export interface RouteResource {
   title: string
   cover: string
   order: number
+}
+
+export interface RouteTimelineItem {
+  day: number
+  label: string
+  startTime: string
+  endTime: string
+  stopCount: number
+  estimatedDistance: number
 }
 
 

@@ -111,10 +111,11 @@ import {
   Setting,
   HomeFilled,
   MapLocation,
-  Route,
   Calendar,
   ChatLineRound,
   Menu,
+  CollectionTag,
+  Guide,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -141,7 +142,8 @@ const handleResize = () => {
 const menuItems = computed(() => [
   { path: '/home', label: t('nav.home'), icon: 'HomeFilled' },
   { path: '/map', label: t('nav.map'), icon: 'MapLocation' },
-  { path: '/routes', label: t('nav.routes'), icon: 'Route' },
+  { path: '/heritage', label: '非遗专题', icon: 'CollectionTag' },
+  { path: '/routes', label: t('nav.routes'), icon: 'Guide' },
   { path: '/events', label: t('nav.events'), icon: 'Calendar' },
   { path: '/community', label: t('nav.community'), icon: 'ChatLineRound' },
 ])
@@ -246,6 +248,8 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: 8px 16px;
     border-radius: 8px;
     color: #606266;
@@ -344,6 +348,38 @@ onUnmounted(() => {
 
   &:hover {
     transform: scale(1.1);
+  }
+}
+
+@media (max-width: 1100px) {
+  .header-content {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 0;
+    row-gap: 10px;
+  }
+
+  .nav-menu {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .nav-item {
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    width: 160px;
   }
 }
 

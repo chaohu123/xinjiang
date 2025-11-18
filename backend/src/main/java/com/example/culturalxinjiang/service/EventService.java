@@ -1,5 +1,6 @@
 package com.example.culturalxinjiang.service;
 
+import com.example.culturalxinjiang.dto.response.EventCalendarResponse;
 import com.example.culturalxinjiang.dto.response.EventDetailResponse;
 import com.example.culturalxinjiang.dto.response.EventResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
@@ -19,8 +20,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -65,6 +70,49 @@ public class EventService {
                 .orElseThrow(() -> new RuntimeException("活动不存在"));
 
         return mapToDetailResponse(event);
+    }
+
+    @Transactional(readOnly = true)
+    public EventCalendarResponse getCalendar(String month) {
+        YearMonth target;
+        try {
+            target = (month != null && !month.isBlank()) ? YearMonth.parse(month) : YearMonth.now();
+        } catch (Exception e) {
+            target = YearMonth.now();
+        }
+
+        LocalDate startDate = target.atDay(1);
+        LocalDate endDate = target.atEndOfMonth();
+        List<Event> events = eventRepository.findByDateRange(startDate, endDate);
+
+        Map<Integer, List<EventResponse>> calendar = new LinkedHashMap<>();
+        for (int day = 1; day <= target.lengthOfMonth(); day++) {
+            calendar.put(day, new ArrayList<>());
+        }
+
+        for (Event event : events) {
+            LocalDate effectiveStart = event.getStartDate().isBefore(startDate) ? startDate : event.getStartDate();
+            LocalDate effectiveEnd = event.getEndDate().isAfter(endDate) ? endDate : event.getEndDate();
+            for (LocalDate date = effectiveStart; !date.isAfter(effectiveEnd); date = date.plusDays(1)) {
+                int day = date.getDayOfMonth();
+                calendar.computeIfAbsent(day, k -> new ArrayList<>()).add(mapToResponse(event));
+            }
+        }
+
+        List<EventCalendarResponse.DayEvents> days = calendar.entrySet().stream()
+                .map(entry -> EventCalendarResponse.DayEvents.builder()
+                        .day(entry.getKey())
+                        .events(entry.getValue().stream()
+                                .sorted(Comparator.comparing(EventResponse::getStartDate)
+                                        .thenComparing(EventResponse::getTitle))
+                                .collect(Collectors.toList()))
+                        .build())
+                .collect(Collectors.toList());
+
+        return EventCalendarResponse.builder()
+                .month(target.toString())
+                .days(days)
+                .build();
     }
 
     @Transactional

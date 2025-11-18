@@ -19,7 +19,8 @@ export function loadAMapScript(): Promise<void> {
     const script = document.createElement('script')
     script.type = 'text/javascript'
     script.async = true
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&callback=initAMap`
+    const pluginParam = 'AMap.MarkerClusterer'
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&plugin=${pluginParam}&callback=initAMap`
 
     // 设置全局回调
     ;(window as any).initAMap = () => {

@@ -25,3 +25,21 @@ export interface UserInfo {
   badges?: UserBadge[]
   registeredEvents?: Event[]
 }
+
+export type FavoriteResourceType = 'CULTURE' | 'ROUTE' | 'POST'
+
+export interface FavoriteItem {
+  id: number
+  resourceType: FavoriteResourceType
+  title: string
+  description?: string
+  cover?: string
+  region?: string
+  type?: string
+  favorites?: number
+  startLocation?: string
+  endLocation?: string
+  duration?: number
+  distance?: number
+  theme?: string
+}

@@ -43,6 +43,24 @@
               </div>
             </div>
           </div>
+          <div class="hero-actions">
+            <el-button
+              class="favorite-btn"
+              type="primary"
+              plain
+              :loading="favoriteLoading"
+              @click="toggleFavorite"
+            >
+              <el-icon>
+                <component :is="isFavorited ? StarFilled : Star" />
+              </el-icon>
+              <span>{{ isFavorited ? '已收藏' : '收藏路线' }}</span>
+            </el-button>
+            <div class="favorite-count">
+              <el-icon><Star /></el-icon>
+              <span>{{ routeDetail.favorites }} 人收藏</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -184,10 +202,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { getRouteDetail } from '@/api/route'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getRouteDetail, favoriteRoute, unfavoriteRoute } from '@/api/route'
 import type { RouteDetail } from '@/types/route'
-import { Clock, MapLocation, Location } from '@element-plus/icons-vue'
+import { Clock, MapLocation, Location, Star, StarFilled } from '@element-plus/icons-vue'
+import { requireAuth } from '@/utils/auth'
 
 const openGoogleMaps = (lat: number, lng: number, name: string) => {
   const url = `https://maps.google.com/?q=${lat},${lng}`
@@ -195,8 +215,11 @@ const openGoogleMaps = (lat: number, lng: number, name: string) => {
 }
 
 const route = useRoute()
+const router = useRouter()
 const routeDetail = ref<RouteDetail | null>(null)
 const loading = ref(false)
+const isFavorited = ref(false)
+const favoriteLoading = ref(false)
 
 const loadDetail = async () => {
   const id = parseInt(route.params.id as string)
@@ -204,10 +227,37 @@ const loadDetail = async () => {
   try {
     const data = await getRouteDetail(id)
     routeDetail.value = data
+    isFavorited.value = Boolean(data.favorited)
   } catch (error) {
     console.error('Failed to load route detail:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const toggleFavorite = async () => {
+  if (!routeDetail.value) return
+  if (!requireAuth('请先登录后再收藏路线', router)) {
+    return
+  }
+  favoriteLoading.value = true
+  try {
+    if (isFavorited.value) {
+      await unfavoriteRoute(routeDetail.value.id)
+      routeDetail.value.favorites = Math.max(0, (routeDetail.value.favorites || 0) - 1)
+      isFavorited.value = false
+      ElMessage.success('已取消收藏')
+    } else {
+      await favoriteRoute(routeDetail.value.id)
+      routeDetail.value.favorites = (routeDetail.value.favorites || 0) + 1
+      isFavorited.value = true
+      ElMessage.success('收藏成功')
+    }
+  } catch (error) {
+    console.error('Failed to toggle route favorite:', error)
+    ElMessage.error('操作失败，请稍后重试')
+  } finally {
+    favoriteLoading.value = false
   }
 }
 
@@ -316,6 +366,33 @@ onMounted(() => {
     gap: 24px;
     flex-wrap: wrap;
     animation: fadeInUp 0.6s ease-out 0.6s both;
+  }
+
+  .hero-actions {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .favorite-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .favorite-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #e6b000;
+    font-weight: 600;
+
+    .el-icon {
+      font-size: 18px;
+    }
   }
 
   .info-card {

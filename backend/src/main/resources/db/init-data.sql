@@ -322,6 +322,89 @@ INSERT INTO event_registrations (user_id, event_id, status) VALUES
 ON DUPLICATE KEY UPDATE id = id;
 ALTER TABLE event_registrations
     ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING' AFTER event_id;
+
+-- =====================================================
+-- 插入非遗数据内容
+-- 1. 新疆维吾尔木卡姆艺术
+INSERT INTO heritage_items (title, region, category, cover, description, content, video_url, heritage_level, featured, views) VALUES
+    ('新疆维吾尔木卡姆艺术', '新疆', '表演艺术', '/covers/xinjiang_muqam.jpg', '维吾尔木卡姆是集歌、舞、乐为一体的大型综合艺术形式，被誉为"东方音乐的明珠"',
+     '新疆维吾尔木卡姆艺术是一种广泛流传于新疆各维吾尔族聚居区的各种木卡姆的总称，是集歌、舞、乐为一体的大型综合艺术形式。木卡姆音乐现象分布在中亚、南亚、西亚、北非等19个国家和地区，新疆处于这些国家和地区的最东端。维吾尔木卡姆作为东、西方乐舞文化交流的结晶，记录和印证了不同人群乐舞文化之间相互传播、交融的历史。',
+     'https://example.com/videos/xinjiang_muqam.mp4', '世界级', TRUE, 2540);
+
+INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
+                                                              (LAST_INSERT_ID(), '/images/muqam1.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/muqam2.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/muqam3.jpg');
+
+INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
+                                                      (LAST_INSERT_ID(), '音乐'), (LAST_INSERT_ID(), '舞蹈'), (LAST_INSERT_ID(), '维吾尔族');
+
+-- 2. 玛纳斯
+INSERT INTO heritage_items (title, region, category, cover, description, content, video_url, heritage_level, featured, views) VALUES
+    ('玛纳斯', '新疆克孜勒苏柯尔克孜自治州', '口头传统', '/covers/manas.jpg', '柯尔克孜族英雄史诗《玛纳斯》，是世界著名的史诗之一',
+     '《玛纳斯》是柯尔克孜族的英雄史诗，与藏族史诗《格萨尔王传》、蒙古族史诗《江格尔》并称中国三大史诗。全诗共分八部，长达23万余行，通过动人的情节和优美的语言，生动描绘了玛纳斯家族八代英雄为维护部落利益而进行艰苦卓绝斗争的故事。',
+     'https://example.com/videos/manas.mp4', '国家级', TRUE, 1870);
+
+INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
+                                                              (LAST_INSERT_ID(), '/images/manas1.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/manas2.jpg');
+
+INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
+                                                      (LAST_INSERT_ID(), '史诗'), (LAST_INSERT_ID(), '柯尔克孜族'), (LAST_INSERT_ID(), '口头文学');
+
+-- 3. 维吾尔族模制法土陶烧制技艺
+INSERT INTO heritage_items (title, region, category, cover, description, content, video_url, heritage_level, featured, views) VALUES
+    ('维吾尔族模制法土陶烧制技艺', '新疆喀什', '传统技艺', '/covers/pottery.jpg', '新疆喀什地区古老的土陶制作技艺，具有鲜明的民族特色',
+     '维吾尔族模制法土陶烧制技艺主要流传于新疆喀什地区，已有两千多年的历史。这种技艺采用当地特有的陶土为原料，通过手工模制、彩绘、烧制等工序制作出各种生活用具和工艺品。其造型古朴、色彩鲜艳，具有很高的艺术价值和实用价值。',
+     'https://example.com/videos/pottery.mp4', '国家级', FALSE, 920);
+
+INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
+                                                              (LAST_INSERT_ID(), '/images/pottery1.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/pottery2.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/pottery3.jpg');
+
+INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
+                                                      (LAST_INSERT_ID(), '陶瓷'), (LAST_INSERT_ID(), '手工艺'), (LAST_INSERT_ID(), '维吾尔族');
+
+-- 4. 哈萨克族毡房营造技艺
+INSERT INTO heritage_items (title, region, category, cover, description, content, video_url, heritage_level, featured, views) VALUES
+    ('哈萨克族毡房营造技艺', '新疆伊犁', '传统技艺', '/covers/yurt.jpg', '哈萨克族传统的移动民居建造技艺，适应游牧生活',
+     '哈萨克族毡房是哈萨克族牧民的传统住房，具有便于拆卸、携带、安装的特点，非常适合游牧生活。毡房的营造技艺包括木架制作、毛毡加工、绳索编织等多个环节，体现了哈萨克族人民的智慧和适应自然的能力。',
+     'https://example.com/videos/yurt.mp4', '国家级', FALSE, 1560);
+
+INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
+                                                              (LAST_INSERT_ID(), '/images/yurt1.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/yurt2.jpg');
+
+INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
+                                                      (LAST_INSERT_ID(), '建筑'), (LAST_INSERT_ID(), '哈萨克族'), (LAST_INSERT_ID(), '游牧文化');
+
+-- 5. 塔吉克族鹰舞
+INSERT INTO heritage_items (title, region, category, cover, description, content, video_url, heritage_level, featured, views) VALUES
+    ('塔吉克族鹰舞', '新疆塔什库尔干', '表演艺术', '/covers/eagle_dance.jpg', '塔吉克族传统舞蹈，模仿雄鹰的动作，展现民族精神',
+     '塔吉克族鹰舞是塔吉克族传统的民间舞蹈，舞者通过模仿雄鹰的各种动作和姿态，展现塔吉克族人民勇敢、豪迈的民族性格。舞蹈节奏鲜明，动作刚劲有力，具有很高的艺术观赏价值和文化研究价值。',
+     'https://example.com/videos/eagle_dance.mp4', '自治区级', FALSE, 680);
+
+INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
+                                                              (LAST_INSERT_ID(), '/images/eagle_dance1.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/eagle_dance2.jpg');
+
+INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
+                                                      (LAST_INSERT_ID(), '舞蹈'), (LAST_INSERT_ID(), '塔吉克族'), (LAST_INSERT_ID(), '民间艺术');
+
+-- 6. 艾德莱斯绸织染技艺
+INSERT INTO heritage_items (title, region, category, cover, description, content, video_url, heritage_level, featured, views) VALUES
+    ('艾德莱斯绸织染技艺', '新疆和田', '传统技艺', '/covers/atlas_silk.jpg', '新疆特有的丝绸织造技艺，以色彩鲜艳、图案独特著称',
+     '艾德莱斯绸是新疆特有的传统丝绸织品，主要产于和田、喀什等地。其织造工艺复杂，采用古老的扎经染色法，图案具有抽象、浪漫的特点，色彩对比强烈，富有浓郁的民族风格。艾德莱斯绸被誉为"二十一世纪最后的丝绸手工艺"。',
+     'https://example.com/videos/atlas_silk.mp4', '国家级', TRUE, 2130);
+
+INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
+                                                              (LAST_INSERT_ID(), '/images/atlas_silk1.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/atlas_silk2.jpg'),
+                                                              (LAST_INSERT_ID(), '/images/atlas_silk3.jpg');
+
+INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
+                                                      (LAST_INSERT_ID(), '纺织'), (LAST_INSERT_ID(), '丝绸'), (LAST_INSERT_ID(), '维吾尔族');
 -- =====================================================
 -- 完成
 -- =====================================================

@@ -15,13 +15,28 @@
           <el-tab-pane :label="$t('events.ongoing')" name="ongoing" />
           <el-tab-pane :label="$t('events.past')" name="past" />
         </el-tabs>
-        <el-button
-          v-if="activeTab === 'upcoming'"
-          :icon="Calendar"
-          circle
-          class="calendar-btn"
-          @click="handleCalendarOpen(); showCalendarDialog = true"
-        />
+      </div>
+
+      <div class="calendar-wrapper">
+        <el-card v-loading="calendarLoading">
+          <ActivityCalendar
+            :data="calendarData"
+            @change-month="changeCalendarMonth"
+            @select-day="handleDaySelect"
+          />
+        </el-card>
+        <div class="day-panel" v-if="selectedDayEvents.length">
+          <h3>当日活动</h3>
+          <div class="day-event" v-for="event in selectedDayEvents" :key="event.id" @click="$router.push(`/event/${event.id}`)">
+            <div>
+              <strong>{{ event.title }}</strong>
+              <p>{{ formatDate(event.startDate, 'YYYY-MM-DD') }}</p>
+            </div>
+            <el-tag :type="getStatusType(getActualStatus(event))">
+              {{ getStatusText(getActualStatus(event)) }}
+            </el-tag>
+          </div>
+        </div>
       </div>
 
       <div v-loading="loading" class="events-list">
@@ -92,57 +107,34 @@
       />
     </div>
 
-    <!-- 日历对话框 -->
-    <el-dialog
-      v-model="showCalendarDialog"
-      title="活动日历"
-      width="500px"
-    >
-      <el-calendar v-model="calendarDate">
-        <template #date-cell="{ data }">
-          <div class="calendar-cell">
-            <div class="calendar-date">{{ data.day.split('-').slice(2).join('-') }}</div>
-            <div v-if="getEventsByDate(data.day).length > 0" class="calendar-events">
-              <el-tag
-                v-for="event in getEventsByDate(data.day)"
-                :key="event.id"
-                size="small"
-                type="success"
-                class="calendar-event-tag"
-                @click.stop="handleCalendarEventClick(event.id)"
-              >
-                {{ event.title }}
-              </el-tag>
-            </div>
-          </div>
-        </template>
-      </el-calendar>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
-import { getEvents, registerEvent } from '@/api/event'
-import type { Event } from '@/types/event'
+import { getEvents, registerEvent, getEventCalendar } from '@/api/event'
+import type { Event, EventCalendarResponse } from '@/types/event'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { formatDate } from '@/utils'
 import { Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { requireAuth } from '@/utils/auth'
+import ActivityCalendar from '@/components/events/ActivityCalendar.vue'
 
 const router = useRouter()
 
 const events = ref<Event[]>([])
-const allEvents = ref<Event[]>([]) // 存储所有活动用于日历显示
 const loading = ref(false)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(12)
 const activeTab = ref('upcoming')
-const showCalendarDialog = ref(false)
-const calendarDate = ref(new Date())
+const calendarMonth = ref(dayjs().format('YYYY-MM'))
+const calendarData = ref<EventCalendarResponse | null>(null)
+const calendarLoading = ref(false)
+const selectedDayEvents = ref<Event[]>([])
 
 const getStatusType = (status: string) => {
   const map: Record<string, string> = {
@@ -190,31 +182,6 @@ const getActualStatus = (event: Event): 'upcoming' | 'ongoing' | 'past' => {
   return 'ongoing'
 }
 
-/**
- * 获取指定日期的活动列表
- */
-const getEventsByDate = (dateStr: string): Event[] => {
-  return allEvents.value.filter(event => {
-    const eventStart = new Date(event.startDate)
-    const eventEnd = new Date(event.endDate)
-    const targetDate = new Date(dateStr)
-
-    eventStart.setHours(0, 0, 0, 0)
-    eventEnd.setHours(23, 59, 59, 999)
-    targetDate.setHours(0, 0, 0, 0)
-
-    return targetDate >= eventStart && targetDate <= eventEnd
-  })
-}
-
-/**
- * 处理日历中活动点击
- */
-const handleCalendarEventClick = (eventId: number) => {
-  router.push(`/event/${eventId}`)
-  showCalendarDialog.value = false
-}
-
 const loadEvents = async () => {
   loading.value = true
   try {
@@ -242,13 +209,6 @@ const loadEvents = async () => {
     // 如果过滤后没有活动，会显示空状态
     total.value = response.total || 0
 
-    // 如果是"即将开始"标签页，加载所有即将开始的活动用于日历显示
-    if (activeTab.value === 'upcoming') {
-      loadAllUpcomingEvents()
-    } else {
-      // 清空日历活动列表
-      allEvents.value = []
-    }
   } catch (error) {
     console.error('Failed to load events:', error)
     events.value = []
@@ -258,37 +218,37 @@ const loadEvents = async () => {
   }
 }
 
-/**
- * 加载所有即将开始的活动用于日历显示
- */
-const loadAllUpcomingEvents = async () => {
+const loadCalendar = async () => {
+  calendarLoading.value = true
   try {
-    const response = await getEvents({
-      status: 'upcoming',
-      page: 1,
-      size: 1000, // 加载足够多的活动
-    })
-    const eventsList = (response.list || []).map(event => ({
-      ...event,
-      status: event.status?.toLowerCase() as 'upcoming' | 'ongoing' | 'past',
-      type: event.type?.toLowerCase() as 'exhibition' | 'performance' | 'workshop' | 'tour',
-    }))
-
-    // 只保留真正即将开始的活动
-    allEvents.value = eventsList.filter(event => getActualStatus(event) === 'upcoming')
+    const data = await getEventCalendar(calendarMonth.value)
+    calendarData.value = {
+      ...data,
+      days: data.days.map(day => ({
+        ...day,
+        events: day.events.map(event => ({
+          ...event,
+          status: event.status?.toLowerCase() as 'upcoming' | 'ongoing' | 'past',
+          type: event.type?.toLowerCase() as 'exhibition' | 'performance' | 'workshop' | 'tour',
+        })),
+      })),
+    }
   } catch (error) {
-    console.error('Failed to load all upcoming events:', error)
-    allEvents.value = []
+    console.error('Failed to load calendar', error)
+    calendarData.value = null
+  } finally {
+    calendarLoading.value = false
   }
 }
 
-/**
- * 当打开日历时，确保加载了活动数据
- */
-const handleCalendarOpen = () => {
-  if (allEvents.value.length === 0 && activeTab.value === 'upcoming') {
-    loadAllUpcomingEvents()
-  }
+const changeCalendarMonth = (offset: number) => {
+  const next = dayjs(calendarMonth.value).add(offset, 'month')
+  calendarMonth.value = next.format('YYYY-MM')
+  loadCalendar()
+}
+
+const handleDaySelect = (payload: { day: number; events: Event[] }) => {
+  selectedDayEvents.value = payload.events
 }
 
 const handleTabChange = () => {
@@ -323,10 +283,7 @@ const handleRegister = async (id: number) => {
 
 onMounted(() => {
   loadEvents()
-  // 如果是"即将开始"标签页，也加载所有活动用于日历
-  if (activeTab.value === 'upcoming') {
-    loadAllUpcomingEvents()
-  }
+  loadCalendar()
 })
 </script>
 
@@ -414,47 +371,37 @@ onMounted(() => {
 }
 
 .tabs-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: 20px;
+}
 
-  :deep(.el-tabs__header) {
-    margin: 0;
+.calendar-wrapper {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.day-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+
+  h3 {
+    margin-bottom: 12px;
   }
-}
 
-.calendar-btn {
-  margin-left: 16px;
-}
+  .day-event {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f2f2f2;
+    cursor: pointer;
 
-.calendar-cell {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-}
-
-.calendar-date {
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
-.calendar-events {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  overflow: hidden;
-}
-
-.calendar-event-tag {
-  cursor: pointer;
-  font-size: 10px;
-  padding: 2px 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+    &:last-child {
+      border-bottom: none;
+    }
+  }
 }
 </style>

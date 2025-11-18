@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -17,6 +18,7 @@ public class PageResponse<T> {
     private Integer page;
     private Integer size;
     private Integer totalPages;
+    private Map<String, Object> extra;
 
     public static <T> PageResponse<T> of(List<T> list, Long total, Integer page, Integer size) {
         int totalPages = (int) Math.ceil((double) total / size);
@@ -26,6 +28,7 @@ public class PageResponse<T> {
                 .page(page)
                 .size(size)
                 .totalPages(totalPages)
+                .extra(null)
                 .build();
     }
 }

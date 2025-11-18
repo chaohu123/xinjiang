@@ -21,6 +21,24 @@
       @refresh="refreshAll"
     />
 
+    <section class="level-section">
+      <el-card shadow="never">
+        <div class="level-card-header">
+          <div>
+            <h2>成长等级</h2>
+            <p>分享、收藏与参与活动将提升你的文化成长值</p>
+          </div>
+          <el-tag size="large" effect="dark">Lv{{ levelInfo.level }}</el-tag>
+        </div>
+        <LevelProgress :level="levelInfo.level" :exp="levelInfo.exp" :next-level-exp="levelInfo.nextLevelExp" />
+        <div class="badge-row">
+          <el-tag v-for="badge in levelInfo.badges" :key="badge" type="success" effect="dark">
+            {{ badge }}
+          </el-tag>
+        </div>
+      </el-card>
+    </section>
+
     <section class="profile-enhance-grid">
       <GalleryCarousel
         :title="t('profile.galleryTitle')"
@@ -299,7 +317,7 @@
             <div v-if="filteredFavorites.length" class="favorites-grid">
               <el-card
                 v-for="fav in filteredFavorites"
-                :key="fav.id"
+                :key="`${fav.resourceType}-${fav.id}`"
                 class="favorite-card"
                 shadow="never"
               >
@@ -307,11 +325,21 @@
                 <div class="favorite-body">
                   <p class="fav-title">{{ fav.title }}</p>
                   <p class="fav-meta">
-                    {{ fav.region }} · {{ favoriteTypeLabel(fav.type) }}
+                    {{ favoriteMetaText(fav) }}
                   </p>
-                  <el-button text type="primary" @click="goToResource(fav)">
-                    {{ t('profile.viewDetail') }}
-                  </el-button>
+                  <div class="favorite-actions">
+                    <el-button text type="primary" @click="goToResource(fav)">
+                      {{ t('profile.viewDetail') }}
+                    </el-button>
+                    <el-button
+                      text
+                      type="danger"
+                      :loading="unfavoriteLoadingKey === favoriteKey(fav)"
+                      @click="handleUnfavorite(fav)"
+                    >
+                      {{ t('profile.removeFavorite') }}
+                    </el-button>
+                  </div>
                 </div>
               </el-card>
             </div>
@@ -405,18 +433,19 @@ import {
 } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { deleteMyComment, getMyComments, getMyPosts, updateMyComment } from '@/api/community'
-import { getFavorites } from '@/api/culture'
+import { getFavorites, unfavoriteResource } from '@/api/culture'
 import { cancelEventRegistration, getMyRegisteredEvents } from '@/api/event'
-import { getMyRoutes, deleteMyRoute } from '@/api/route'
+import { getMyRoutes, deleteMyRoute, unfavoriteRoute } from '@/api/route'
 import type { CommunityPost, MyComment } from '@/types/community'
-import type { CultureResource } from '@/types/culture'
 import type { Event } from '@/types/event'
 import type { Route } from '@/types/route'
 import request from '@/utils/axios'
 import ScenicHero from '@/components/profile/ScenicHero.vue'
 import GalleryCarousel, { type GalleryItem } from '@/components/profile/GalleryCarousel.vue'
 import MiniEventsCalendar, { type CalendarPreview } from '@/components/profile/MiniEventsCalendar.vue'
-import type { UserBadge } from '@/types/user'
+import LevelProgress from '@/components/profile/LevelProgress.vue'
+import type { FavoriteItem, UserBadge } from '@/types/user'
+import type { CultureType } from '@/types/culture'
 
 dayjs.extend(relativeTime)
 
@@ -464,8 +493,8 @@ const avatarUploading = ref(false)
 const pageLoading = ref(false)
 
 const posts = reactive<{ list: CommunityPost[]; total: number }>({ list: [], total: 0 })
-const favorites = reactive<{ list: CultureResource[]; total: number }>({ list: [], total: 0 })
-const favoriteFilter = ref<'all' | 'article' | 'exhibit' | 'video' | 'audio'>('all')
+const favorites = reactive<{ list: FavoriteItem[]; total: number }>({ list: [], total: 0 })
+const favoriteFilter = ref<'all' | 'article' | 'exhibit' | 'video' | 'audio' | 'route'>('all')
 const events = reactive<{ list: Event[]; total: number }>({ list: [], total: 0 })
 const routes = reactive<{ list: Route[]; total: number }>({ list: [], total: 0 })
 const myComments = reactive<{ list: MyComment[]; total: number }>({ list: [], total: 0 })
@@ -491,6 +520,7 @@ const commentSaving = ref(false)
 const deletingCommentId = ref<number | null>(null)
 const cancelingEventId = ref<number | null>(null)
 const deletingRouteId = ref<number | null>(null)
+const unfavoriteLoadingKey = ref<string | null>(null)
 
 const userInfo = computed(() => userStore.userInfo)
 
@@ -537,6 +567,34 @@ const membershipTier = computed(() => {
   if (score >= 30) return t('profile.tierGuardian')
   if (score >= 12) return t('profile.tierExplorer')
   return t('profile.tierNewcomer')
+})
+
+const experiencePoints = computed(() => posts.total * 10 + favorites.total * 5 + events.total * 15 + routes.total * 8)
+
+const levelInfo = computed(() => {
+  const exp = experiencePoints.value
+  const stages = [
+    { level: 1, threshold: 0, badges: ['文化旅人'] },
+    { level: 2, threshold: 150, badges: ['丝路探索者'] },
+    { level: 3, threshold: 400, badges: ['民俗传承人'] },
+    { level: 4, threshold: 800, badges: ['文化守护者'] },
+  ]
+  let current = stages[0]
+  for (const stage of stages) {
+    if (exp >= stage.threshold) {
+      current = stage
+    }
+  }
+  const nextStage =
+    stages.find(stage => stage.threshold > current.threshold) ||
+    { level: current.level + 1, threshold: current.threshold + 400, badges: current.badges }
+
+  return {
+    level: current.level,
+    exp,
+    nextLevelExp: nextStage.threshold,
+    badges: current.badges,
+  }
 })
 
 const heroCover = computed(() => {
@@ -664,16 +722,30 @@ const buildEventRange = (event: Event) => {
   return `${start} - ${end}`
 }
 
-const favoriteTypeLabel = (type: string) => {
+const favoriteTypeLabel = (type?: string) => {
   const normalized = (type || '').toLowerCase()
+  if (normalized === 'route') {
+    return t('profile.resourceRoute')
+  }
   return (
     {
       article: t('profile.resourceArticle'),
       exhibit: t('profile.resourceExhibit'),
       video: t('profile.resourceVideo'),
       audio: t('profile.resourceAudio'),
-    }[normalized as 'article' | 'exhibit' | 'video' | 'audio'] || type
+    }[normalized as 'article' | 'exhibit' | 'video' | 'audio'] || type || '--'
   )
+}
+
+const favoriteMetaText = (item: FavoriteItem) => {
+  if (item.resourceType === 'ROUTE') {
+    const start = item.startLocation || t('routes.start')
+    const end = item.endLocation || t('routes.end')
+    const duration = item.duration ? `${item.duration}` : '--'
+    return t('profile.favoriteRouteMeta', { start, end, duration })
+  }
+  const region = item.region || t('profile.unknownRegion')
+  return `${region} · ${favoriteTypeLabel(item.type)}`
 }
 
 const favoriteFilterOptions = computed(() => [
@@ -682,14 +754,18 @@ const favoriteFilterOptions = computed(() => [
   { label: t('profile.favoriteFilterExhibit'), value: 'exhibit' },
   { label: t('profile.favoriteFilterVideo'), value: 'video' },
   { label: t('profile.favoriteFilterAudio'), value: 'audio' },
+  { label: t('profile.favoriteFilterRoute'), value: 'route' },
 ])
 
 const filteredFavorites = computed(() => {
   if (favoriteFilter.value === 'all') {
     return favorites.list
   }
+  if (favoriteFilter.value === 'route') {
+    return favorites.list.filter(item => item.resourceType === 'ROUTE')
+  }
   return favorites.list.filter(
-    item => (item.type || '').toLowerCase() === favoriteFilter.value,
+    item => item.resourceType !== 'ROUTE' && (item.type || '').toLowerCase() === favoriteFilter.value,
   )
 })
 
@@ -704,10 +780,10 @@ const galleryItems = computed<GalleryItem[]>(() => {
     }))
   }
   return favorites.list.slice(0, 6).map(item => ({
-    id: `favorite-${item.id}`,
+    id: `favorite-${item.resourceType}-${item.id}`,
     title: item.title,
     cover: item.cover,
-    description: `${item.region} · ${favoriteTypeLabel(item.type)}`,
+    description: favoriteMetaText(item),
   }))
 })
 
@@ -806,8 +882,39 @@ const goChangePassword = () => {
   ElMessage.info(t('profile.pendingFeature'))
 }
 
-const goToResource = (resource: CultureResource) => {
-  router.push(`/detail/${resource.type}/${resource.id}`)
+const goToResource = (resource: FavoriteItem) => {
+  if (resource.resourceType === 'ROUTE') {
+    router.push(`/route/${resource.id}`)
+    return
+  }
+  if (resource.type) {
+    router.push(`/detail/${resource.type}/${resource.id}`)
+  }
+}
+
+const favoriteKey = (item: FavoriteItem) => `${item.resourceType}-${item.id}`
+
+const handleUnfavorite = async (item: FavoriteItem) => {
+  if (unfavoriteLoadingKey.value) return
+  const key = favoriteKey(item)
+  unfavoriteLoadingKey.value = key
+  try {
+    if (item.resourceType === 'ROUTE') {
+      await unfavoriteRoute(item.id)
+    } else if (item.type) {
+      await unfavoriteResource(item.type as CultureType, item.id)
+    } else {
+      throw new Error('Unknown favorite type')
+    }
+    favorites.list = favorites.list.filter(f => !(f.resourceType === item.resourceType && f.id === item.id))
+    favorites.total = favorites.list.length
+    ElMessage.success(t('profile.favoriteRemoved'))
+  } catch (error) {
+    console.error('[Profile] Failed to unfavorite', error)
+    ElMessage.error(t('profile.favoriteRemoveFailed'))
+  } finally {
+    unfavoriteLoadingKey.value = null
+  }
 }
 
 const goToRoute = (route: Route) => {
@@ -1056,6 +1163,35 @@ onMounted(async () => {
   background: var(--bg-page);
 }
 
+.level-section {
+  :deep(.el-card__body) {
+    padding: 24px;
+  }
+}
+
+.level-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+  }
+}
+
+.badge-row {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .profile-enhance-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -1245,6 +1381,13 @@ onMounted(async () => {
   padding: 18px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.favorite-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 8px;
 }
 
@@ -1495,6 +1638,9 @@ onMounted(async () => {
   }
 }
 </style>
+
+
+
 
 
 

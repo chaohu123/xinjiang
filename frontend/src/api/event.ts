@@ -1,5 +1,5 @@
 import request from '@/utils/axios'
-import type { Event, EventDetail } from '@/types/event'
+import type { Event, EventCalendarResponse, EventDetail } from '@/types/event'
 
 // 获取活动列表
 export const getEvents = (params?: {
@@ -44,4 +44,10 @@ export const getLatestEvents = (params?: { page?: number; size?: number }) => {
     '/events/latest',
     { params },
   )
+}
+
+export const getEventCalendar = (month?: string) => {
+  return request.get<EventCalendarResponse>('/events/calendar', {
+    params: month ? { month } : {},
+  })
 }

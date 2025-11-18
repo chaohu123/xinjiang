@@ -6,9 +6,11 @@ import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.dto.response.RouteDetailResponse;
 import com.example.culturalxinjiang.dto.response.RouteResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
+import com.example.culturalxinjiang.entity.Favorite;
 import com.example.culturalxinjiang.entity.Route;
 import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.CultureResourceRepository;
+import com.example.culturalxinjiang.repository.FavoriteRepository;
 import com.example.culturalxinjiang.repository.RouteRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
 import com.example.culturalxinjiang.service.AIService.AIRouteResponse;
@@ -25,6 +27,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,6 +38,7 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final CultureResourceRepository cultureResourceRepository;
     private final UserRepository userRepository;
+    private final FavoriteRepository favoriteRepository;
     private final AIService aiService;
 
     @Value("${app.routes.default-cover:/digital-images/route.jpg}")
@@ -316,6 +320,7 @@ public class RouteService {
         response.setViews(route.getViews());
         response.setFavorites(route.getFavorites());
         response.setCreatedAt(route.getCreatedAt());
+        response.setFavorited(isRouteFavoritedByCurrentUser(route.getId()));
 
         // 显式访问懒加载集合，确保在事务内加载
         List<Route.ItineraryItem> itinerary = route.getItinerary() != null
@@ -403,7 +408,30 @@ public class RouteService {
                 ? new ArrayList<>(route.getTips())
                 : new ArrayList<>();
         response.setTips(tips);
+        response.setTimeline(buildTimeline(itinerary));
         return response;
+    }
+
+    private List<RouteDetailResponse.TimelineItem> buildTimeline(List<Route.ItineraryItem> itinerary) {
+        if (itinerary == null || itinerary.isEmpty()) {
+            return List.of();
+        }
+        return itinerary.stream()
+                .map(item -> {
+                    int stopCount = item.getLocations() != null ? item.getLocations().size() : 0;
+                    double estimatedDistance = Math.max(10D, stopCount * 5D);
+                    String startTime = "09:00";
+                    String endTime = stopCount >= 3 ? "19:30" : "18:00";
+                    return new RouteDetailResponse.TimelineItem(
+                            item.getDay(),
+                            "第 " + item.getDay() + " 天",
+                            startTime,
+                            endTime,
+                            stopCount,
+                            estimatedDistance
+                    );
+                })
+                .collect(Collectors.toList());
     }
 
     private String resolveRouteCover(String cover) {
@@ -465,6 +493,21 @@ public class RouteService {
         String username = SecurityUtils.getRequiredUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
+    }
+
+    private Optional<User> getOptionalCurrentUser() {
+        return SecurityUtils.getCurrentUsername()
+                .flatMap(username -> userRepository.findByUsername(username));
+    }
+
+    private boolean isRouteFavoritedByCurrentUser(Long routeId) {
+        return getOptionalCurrentUser()
+                .map(user -> favoriteRepository.existsByUserIdAndResourceTypeAndResourceId(
+                        user.getId(),
+                        Favorite.ResourceType.ROUTE,
+                        routeId
+                ))
+                .orElse(false);
     }
 }
 

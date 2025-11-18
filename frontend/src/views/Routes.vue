@@ -16,8 +16,22 @@
             :key="theme.value"
             :label="theme.label"
             :name="theme.value"
-          />
-          <el-tab-pane label="我的路线" name="my" />
+          >
+            <template #label>
+              <span class="theme-tab-label">
+                <el-icon><component :is="theme.icon" /></el-icon>
+                {{ theme.label }}
+              </span>
+            </template>
+          </el-tab-pane>
+          <el-tab-pane label="我的路线" name="my">
+            <template #label>
+              <span class="theme-tab-label">
+                <el-icon><User /></el-icon>
+                我的路线
+              </span>
+            </template>
+          </el-tab-pane>
         </el-tabs>
       </div>
 
@@ -264,7 +278,7 @@ import { getRoutes, generateRoute, getMyRoutes } from '@/api/route'
 import type { Route } from '@/types/route'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { ROUTE_THEMES } from '@/utils/constants'
-import { Plus, Clock, MapLocation, Location, View, Star } from '@element-plus/icons-vue'
+import { Plus, Clock, MapLocation, Location, View, Star, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { requireAuth } from '@/utils/auth'
@@ -616,6 +630,18 @@ onMounted(() => {
 
 .themes-section {
   margin-bottom: 30px;
+}
+
+.theme-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: #303133;
+
+  .el-icon {
+    font-size: 16px;
+  }
 }
 
 .routes-grid {

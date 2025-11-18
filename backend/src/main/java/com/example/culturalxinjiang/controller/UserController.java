@@ -2,7 +2,7 @@ package com.example.culturalxinjiang.controller;
 
 import com.example.culturalxinjiang.dto.request.ChangePasswordRequest;
 import com.example.culturalxinjiang.dto.response.ApiResponse;
-import com.example.culturalxinjiang.dto.response.CultureResourceResponse;
+import com.example.culturalxinjiang.dto.response.FavoriteItemResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
 import com.example.culturalxinjiang.dto.response.UserInfoResponse;
 import com.example.culturalxinjiang.service.FavoriteService;
@@ -38,11 +38,11 @@ public class UserController {
     }
 
     @GetMapping("/favorites")
-    public ApiResponse<PageResponse<CultureResourceResponse>> getFavorites(
+    public ApiResponse<PageResponse<FavoriteItemResponse>> getFavorites(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size
     ) {
-        PageResponse<CultureResourceResponse> response = favoriteService.getFavorites(page, size);
+        PageResponse<FavoriteItemResponse> response = favoriteService.getFavorites(page, size);
         return ApiResponse.success(response);
     }
 }

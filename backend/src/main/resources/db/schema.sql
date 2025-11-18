@@ -124,6 +124,57 @@ CREATE TABLE IF NOT EXISTS culture_resource_tags (
 CALL create_index_if_not_exists('culture_resource_tags', 'idx_culture_resource_tags_tag', '(tag)');
 
 -- =====================================================
+-- 5. 非遗内容表 (heritage_items)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS heritage_items (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    region VARCHAR(100) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    cover VARCHAR(500),
+    description TEXT,
+    content LONGTEXT,
+    video_url VARCHAR(500),
+    heritage_level VARCHAR(50) NOT NULL,
+    featured BOOLEAN NOT NULL DEFAULT FALSE,
+    views INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='非遗内容表';
+
+-- =====================================================
+-- 5.1 非遗图片表 (heritage_item_images)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS heritage_item_images (
+    heritage_id BIGINT NOT NULL,
+    image_url VARCHAR(500) NOT NULL,
+    PRIMARY KEY (heritage_id, image_url),
+    CONSTRAINT fk_heritage_images_item
+        FOREIGN KEY (heritage_id)
+        REFERENCES heritage_items(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='非遗图片表';
+
+-- =====================================================
+-- 5.2 非遗标签表 (heritage_item_tags)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS heritage_item_tags (
+    heritage_id BIGINT NOT NULL,
+    tag VARCHAR(50) NOT NULL,
+    PRIMARY KEY (heritage_id, tag),
+    CONSTRAINT fk_heritage_tags_item
+        FOREIGN KEY (heritage_id)
+        REFERENCES heritage_items(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='非遗标签表';
+
+CALL create_index_if_not_exists('heritage_items', 'idx_heritage_region', '(region)');
+CALL create_index_if_not_exists('heritage_items', 'idx_heritage_category', '(category)');
+CALL create_index_if_not_exists('heritage_items', 'idx_heritage_level', '(heritage_level)');
+CALL create_index_if_not_exists('heritage_items', 'idx_heritage_views', '(views DESC)');
+CALL create_index_if_not_exists('heritage_item_tags', 'idx_heritage_tags_tag', '(tag)');
+
+-- =====================================================
 -- 5. 活动表 (events)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS events (

@@ -26,14 +26,28 @@ public class CultureController {
     @GetMapping("/search")
     public ApiResponse<PageResponse<CultureResourceResponse>> search(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) CultureResource.CultureType type,
+            @RequestParam(required = false) String type,
             @RequestParam(required = false) String region,
             @RequestParam(required = false) List<String> tags,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size
     ) {
-        PageResponse<CultureResourceResponse> response = cultureResourceService.search(
-                keyword, type, region, tags, page, size);
+        CultureResource.CultureType cultureType = null;
+        boolean heritageOnly = false;
+        if (type != null && !type.isBlank()) {
+            if ("heritage".equalsIgnoreCase(type)) {
+                heritageOnly = true;
+            } else {
+                cultureType = CultureResource.CultureType.valueOf(type.toUpperCase());
+            }
+        }
+
+        PageResponse<CultureResourceResponse> response;
+        if (heritageOnly) {
+            response = cultureResourceService.wrapHeritageOnly(keyword, region, tags, page, size);
+        } else {
+            response = cultureResourceService.search(keyword, cultureType, region, tags, page, size);
+        }
         return ApiResponse.success(response);
     }
 

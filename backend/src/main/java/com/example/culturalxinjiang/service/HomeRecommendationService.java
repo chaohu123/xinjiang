@@ -3,9 +3,11 @@ package com.example.culturalxinjiang.service;
 import com.example.culturalxinjiang.dto.response.HomeResourceResponse;
 import com.example.culturalxinjiang.entity.CommunityPost;
 import com.example.culturalxinjiang.entity.CultureResource;
+import com.example.culturalxinjiang.entity.HeritageItem;
 import com.example.culturalxinjiang.entity.HomeRecommendation;
 import com.example.culturalxinjiang.repository.CommunityPostRepository;
 import com.example.culturalxinjiang.repository.CultureResourceRepository;
+import com.example.culturalxinjiang.repository.HeritageItemRepository;
 import com.example.culturalxinjiang.repository.HomeRecommendationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class HomeRecommendationService {
     private final HomeRecommendationRepository recommendationRepository;
     private final CultureResourceRepository cultureResourceRepository;
     private final CommunityPostRepository communityPostRepository;
+    private final HeritageItemRepository heritageItemRepository;
 
     /**
      * 获取精选推荐资源
@@ -86,6 +89,10 @@ public class HomeRecommendationService {
                     .filter(post -> "approved".equals(post.getStatus()))
                     .map(this::mapCommunityPostToResponse)
                     .orElse(null);
+        } else if (source == HomeRecommendation.ResourceSource.HERITAGE_ITEM) {
+            return heritageItemRepository.findById(resourceId)
+                    .map(this::mapHeritageToResponse)
+                    .orElse(null);
         }
         return null;
     }
@@ -114,6 +121,28 @@ public class HomeRecommendationService {
                 .updatedAt(resource.getUpdatedAt())
                 .source("CULTURE_RESOURCE")
                 .resourceType(resource.getType().name())
+                .build();
+    }
+
+    private HomeResourceResponse mapHeritageToResponse(HeritageItem item) {
+        List<String> images = item.getImages() != null ? new ArrayList<>(item.getImages()) : new ArrayList<>();
+        List<String> tags = item.getTags() != null ? new ArrayList<>(item.getTags()) : new ArrayList<>();
+
+        return HomeResourceResponse.builder()
+                .id(item.getId())
+                .title(item.getTitle())
+                .description(item.getDescription())
+                .cover(item.getCover() != null ? item.getCover() :
+                        (!images.isEmpty() ? images.get(0) : null))
+                .images(images)
+                .content(item.getContent())
+                .tags(tags)
+                .region(item.getRegion())
+                .views(item.getViews())
+                .createdAt(item.getCreatedAt())
+                .updatedAt(item.getUpdatedAt())
+                .source("HERITAGE_ITEM")
+                .resourceType("HERITAGE")
                 .build();
     }
 

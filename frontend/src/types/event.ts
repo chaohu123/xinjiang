@@ -35,3 +35,11 @@ export interface EventDetail extends Event {
   }[]
   requirements?: string[]
 }
+
+export interface EventCalendarResponse {
+  month: string
+  days: {
+    day: number
+    events: Event[]
+  }[]
+}

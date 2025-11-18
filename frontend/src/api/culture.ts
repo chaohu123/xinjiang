@@ -1,5 +1,6 @@
 import request from '@/utils/axios'
 import type { CultureResource, CultureType } from '@/types/culture'
+import type { FavoriteItem } from '@/types/user'
 
 export interface SearchParams {
   keyword?: string
@@ -12,6 +13,17 @@ export interface SearchParams {
 
 export interface SearchResponse {
   list: CultureResource[]
+  total: number
+  page: number
+  size: number
+  extra?: {
+    heritage?: CultureResource[]
+    heritageOnly?: boolean
+  }
+}
+
+export interface PageResult<T> {
+  list: T[]
   total: number
   page: number
   size: number
@@ -51,7 +63,7 @@ export const unfavoriteResource = (type: CultureType, id: number) => {
 
 // 获取收藏列表
 export const getFavorites = (params: { page?: number; size?: number }) => {
-  return request.get<SearchResponse, SearchResponse>('/user/favorites', { params })
+  return request.get<PageResult<FavoriteItem>, PageResult<FavoriteItem>>('/user/favorites', { params })
 }
 
 
