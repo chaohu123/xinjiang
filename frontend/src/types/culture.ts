@@ -44,7 +44,7 @@ export interface HomeResource {
   comments?: number
   createdAt: string
   updatedAt: string
-  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST'
+  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST' | 'HERITAGE_ITEM'
   resourceType?: string
 }
 

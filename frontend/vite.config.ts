@@ -12,11 +12,18 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // 允许外部访问
+    hmr: {
+      clientPort: 3000, // HMR 客户端端口
+      protocol: 'ws',
+      host: 'localhost',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
+        ws: true, // 启用 WebSocket 代理
         // 不重写路径，因为后端 context-path 已经是 /api
       },
     },

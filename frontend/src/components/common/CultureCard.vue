@@ -99,15 +99,17 @@ const getTypeColor = (type?: string) => {
 const handleClick = () => {
   const resource = props.resource as any
   const normalizedType = (resource.type || resource.resourceType || '').toLowerCase()
+  const resolvedType = normalizedType || 'article'
+
   if ('source' in resource && resource.source === 'COMMUNITY_POST') {
-    router.push(`/community/${resource.id}`)
+    router.push(`/community/post/${resource.id}`)
     return
   }
   if (normalizedType === 'heritage' || resource.resourceType === 'HERITAGE') {
     router.push(`/heritage/${resource.id}`)
     return
   }
-  router.push(`/detail/${resource.type || 'article'}/${resource.id}`)
+  router.push(`/detail/${resolvedType}/${resource.id}`)
 }
 </script>
 

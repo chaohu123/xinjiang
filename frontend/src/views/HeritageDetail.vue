@@ -77,7 +77,7 @@
                 @click="$router.push(`/heritage/${item.id}`)"
               >
                 <el-image :src="item.cover || item.images?.[0]" fit="cover" />
-                <div>
+                <div class="recommend-info">
                   <h4>{{ item.title }}</h4>
                   <p>{{ item.region }} · {{ item.category }}</p>
                 </div>
@@ -190,12 +190,15 @@ onMounted(() => {
 
 .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 
   :deep(.el-image) {
-    border-radius: 8px;
-    height: 120px;
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    height: 150px;
   }
 }
 
@@ -238,7 +241,7 @@ onMounted(() => {
     display: flex;
     gap: 12px;
     cursor: pointer;
-    align-items: center;
+    align-items: flex-start;
 
     h4 {
       margin: 0 0 4px 0;
@@ -249,6 +252,14 @@ onMounted(() => {
       height: 60px;
       border-radius: 8px;
     }
+
+    .recommend-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      line-height: 1.4;
+    }
   }
 }
 
@@ -258,6 +269,9 @@ onMounted(() => {
   color: #303133;
 }
 </style>
+
+
+
 
 
 

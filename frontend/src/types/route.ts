@@ -33,7 +33,8 @@ export interface ItineraryItem {
     description?: string
     priority?: string
     alternative?: string
-    googleMapsLink?: string
+    amapLink?: string
+    googleMapsLink?: string // 保留以兼容旧数据
   }[]
   accommodation?: string
   meals?: string[]

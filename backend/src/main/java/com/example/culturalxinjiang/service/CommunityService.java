@@ -124,8 +124,8 @@ public class CommunityService {
             post.setTags(new ArrayList<>(request.getTags()));
         }
 
-        // 如果投稿被拒绝，编辑后重新提交（状态改回pending）
-        if ("rejected".equals(post.getStatus())) {
+        // 重新编辑后重新进入审核流程：无论之前是否通过或被拒绝，均回到待审核状态
+        if ("rejected".equals(post.getStatus()) || "approved".equals(post.getStatus())) {
             post.setStatus("pending");
             post.setRejectReason(null); // 清空拒绝原因
         }

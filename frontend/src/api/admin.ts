@@ -122,6 +122,16 @@ export const deleteHeritageItem = (id: number) => {
   return request.delete(`/admin/heritage/${id}`)
 }
 
+// 上传非遗资源图片或视频
+export const uploadHeritageMedia = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post<{ url: string; type: string }>('/admin/heritage/upload', formData, {
+    // 不设置Content-Type，让axios自动处理（包括boundary参数）
+    headers: {},
+  })
+}
+
 // ==================== 活动管理 ====================
 export interface EventListResponse {
   list: Event[]
@@ -241,7 +251,7 @@ export interface HomeRecommendation {
   id: number
   type: 'FEATURED' | 'HOT'
   resourceId: number
-  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST'
+  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST' | 'HERITAGE_ITEM'
   displayOrder: number
   enabled: boolean
   createdAt: string
@@ -259,7 +269,7 @@ export const getHomeRecommendations = (type?: 'FEATURED' | 'HOT') => {
 export const addHomeRecommendation = (data: {
   type: 'FEATURED' | 'HOT'
   resourceId: number
-  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST'
+  source: 'CULTURE_RESOURCE' | 'COMMUNITY_POST' | 'HERITAGE_ITEM'
   displayOrder?: number
 }) => {
   return request.post<HomeRecommendation>('/admin/home-recommendations', data)

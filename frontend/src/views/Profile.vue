@@ -227,6 +227,92 @@
           </div>
         </el-tab-pane>
 
+        <el-tab-pane :label="t('profile.postsTab')" name="posts">
+          <div class="my-posts-panel">
+            <div class="my-posts-head">
+              <div>
+                <h3>{{ t('profile.postManageTitle') }}</h3>
+                <p>{{ t('profile.postManageSubtitle') }}</p>
+              </div>
+              <div class="my-posts-actions">
+                <el-button @click="router.push({ name: 'Community' })">
+                  {{ t('profile.postManageCreate') }}
+                </el-button>
+                <el-button type="primary" plain :loading="loading.postManage" @click="loadManagePosts()">
+                  {{ t('profile.refresh') }}
+                </el-button>
+              </div>
+            </div>
+            <el-table
+              v-loading="loading.postManage"
+              :data="managePosts.list"
+              border
+              class="my-posts-table"
+              :empty-text="t('profile.postManageEmpty')"
+            >
+              <el-table-column :label="t('profile.postColumnTitle')" min-width="320">
+                <template #default="{ row }">
+                  <div class="my-post-title" @click="router.push(`/community/post/${row.id}`)">
+                    {{ row.title }}
+                  </div>
+                  <p class="my-post-meta">
+                    {{ t('profile.postManageStats', { likes: row.likes ?? 0, comments: row.comments ?? 0 }) }}
+                  </p>
+                  <p class="my-post-meta">
+                    {{ t('profile.postManageUpdatedAt', { time: formatRelative(row.updatedAt) }) }}
+                  </p>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('profile.postColumnStatus')" width="160">
+                <template #default="{ row }">
+                  <el-tag :type="getPostStatusType(row.status)" size="small">
+                    {{ getPostStatusLabel(row.status ?? 'pending') }}
+                  </el-tag>
+                  <div v-if="row.status === 'rejected' && row.rejectReason" class="reject-reason-text">
+                    {{ row.rejectReason }}
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('profile.postColumnActions')" width="220" align="right">
+                <template #default="{ row }">
+                  <div class="my-posts-action-buttons">
+                    <el-button
+                      text
+                      type="primary"
+                      size="small"
+                      :icon="Edit"
+                      @click.stop="handleEditPost(row)"
+                    >
+                      {{ t('profile.postManageEdit') }}
+                    </el-button>
+                    <el-button
+                      text
+                      type="danger"
+                      size="small"
+                      :icon="Delete"
+                      :loading="deletingPostId === row.id"
+                      @click.stop="confirmDeletePost(row)"
+                    >
+                      {{ t('profile.postManageDelete') }}
+                    </el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="my-posts-pagination" v-if="managePosts.total > managePosts.size">
+              <el-pagination
+                v-model:current-page="managePosts.page"
+                v-model:page-size="managePosts.size"
+                :total="managePosts.total"
+                layout="total, sizes, prev, pager, next"
+                :page-sizes="[5, 8, 10, 15]"
+                @current-change="handleManagePostsPageChange"
+                @size-change="handleManagePostsSizeChange"
+              />
+            </div>
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane :label="t('profile.commentsTab')" name="comments">
           <el-skeleton :loading="loading.comments" animated>
             <div v-if="myComments.list.length" class="comment-cards">
@@ -432,7 +518,7 @@ import {
   type UploadRequestOptions,
 } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { deleteMyComment, getMyComments, getMyPosts, updateMyComment } from '@/api/community'
+import { deleteMyComment, deletePost, getMyComments, getMyPosts, updateMyComment } from '@/api/community'
 import { getFavorites, unfavoriteResource } from '@/api/culture'
 import { cancelEventRegistration, getMyRegisteredEvents } from '@/api/event'
 import { getMyRoutes, deleteMyRoute, unfavoriteRoute } from '@/api/route'
@@ -456,7 +542,8 @@ const userStore = useUserStore()
 
 const activeTab = ref('activity')
 const commentsInitialized = ref(false)
-const TAB_KEYS = ['activity', 'comments', 'favorites', 'settings'] as const
+const myPostsInitialized = ref(false)
+const TAB_KEYS = ['activity', 'posts', 'comments', 'favorites', 'settings'] as const
 
 const syncTabFromQuery = (tab?: LocationQueryValue | LocationQueryValue[]) => {
   if (typeof tab !== 'string') return
@@ -487,12 +574,21 @@ watch(activeTab, tab => {
   if (tab === 'comments' && !commentsInitialized.value && !loading.comments) {
     loadMyComments()
   }
+  if (tab === 'posts' && !myPostsInitialized.value && !loading.postManage) {
+    loadManagePosts()
+  }
 })
 const editDialog = ref(false)
 const avatarUploading = ref(false)
 const pageLoading = ref(false)
 
 const posts = reactive<{ list: CommunityPost[]; total: number }>({ list: [], total: 0 })
+const managePosts = reactive<{ list: CommunityPost[]; total: number; page: number; size: number }>({
+  list: [],
+  total: 0,
+  page: 1,
+  size: 8,
+})
 const favorites = reactive<{ list: FavoriteItem[]; total: number }>({ list: [], total: 0 })
 const favoriteFilter = ref<'all' | 'article' | 'exhibit' | 'video' | 'audio' | 'route'>('all')
 const events = reactive<{ list: Event[]; total: number }>({ list: [], total: 0 })
@@ -506,6 +602,7 @@ const loading = reactive({
   routes: false,
   comments: false,
   save: false,
+  postManage: false,
 })
 
 const editForm = reactive({
@@ -518,6 +615,7 @@ const editingCommentId = ref<number | null>(null)
 const commentDraft = ref('')
 const commentSaving = ref(false)
 const deletingCommentId = ref<number | null>(null)
+const deletingPostId = ref<number | null>(null)
 const cancelingEventId = ref<number | null>(null)
 const deletingRouteId = ref<number | null>(null)
 const unfavoriteLoadingKey = ref<string | null>(null)
@@ -664,9 +762,9 @@ const statusLabel = (status?: string) => {
 
 const getPostStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
-    pending: '待审核',
-    approved: '已通过',
-    rejected: '已拒绝',
+    pending: t('profile.postStatusPending'),
+    approved: t('profile.postStatusApproved'),
+    rejected: t('profile.postStatusRejected'),
   }
   return labels[status] || status
 }
@@ -926,6 +1024,32 @@ const handleEditPost = (post: CommunityPost) => {
   router.push(`/community/post/${post.id}?edit=true`)
 }
 
+const confirmDeletePost = (post: CommunityPost) => {
+  ElMessageBox.confirm(
+    t('profile.postDeleteConfirm', { title: post.title }),
+    t('profile.postManageDelete'),
+    {
+      confirmButtonText: t('profile.postManageDelete'),
+      cancelButtonText: t('profile.cancel'),
+      type: 'warning',
+    },
+  )
+    .then(async () => {
+      deletingPostId.value = post.id
+      try {
+        await deletePost(post.id)
+        ElMessage.success(t('profile.postDeleteSuccess'))
+        await Promise.all([loadManagePosts(), loadPosts()])
+      } catch (error) {
+        console.error('[Profile] Failed to delete post', error)
+        ElMessage.error(t('profile.postDeleteFailed'))
+      } finally {
+        deletingPostId.value = null
+      }
+    })
+    .catch(() => {})
+}
+
 const routeThemeLabel = (theme?: string | null) => {
   if (!theme) return '--'
   const themeMap: Record<string, string> = {
@@ -934,6 +1058,7 @@ const routeThemeLabel = (theme?: string | null) => {
     nature: t('routes.themes.nature'),
     culture: t('routes.themes.culture'),
     food: t('routes.themes.food'),
+    general: t('routes.themes.general'),
   }
   return theme
     .split(/[，,]/)
@@ -1055,6 +1180,7 @@ const refreshAll = async () => {
     loadEvents(),
     loadRoutes(),
     loadMyComments(true),
+    loadManagePosts(),
   ])
   pageLoading.value = false
 }
@@ -1068,6 +1194,50 @@ const loadPosts = async () => {
   } finally {
     loading.posts = false
   }
+}
+
+const loadManagePosts = async () => {
+  if (loading.postManage) {
+    return
+  }
+  loading.postManage = true
+  try {
+    let response = await getMyPosts({ page: managePosts.page, size: managePosts.size })
+    let list = response.list ?? []
+    let total = response.total ?? list.length
+
+    if (!list.length && total > 0 && managePosts.page > 1) {
+      managePosts.page = Math.max(1, managePosts.page - 1)
+      response = await getMyPosts({ page: managePosts.page, size: managePosts.size })
+      list = response.list ?? []
+      total = response.total ?? list.length
+    }
+
+    managePosts.list = list
+    managePosts.total = total
+    myPostsInitialized.value = true
+  } catch (error) {
+    console.error('[Profile] Failed to load my posts', error)
+    managePosts.list = []
+    managePosts.total = 0
+    if (managePosts.page !== 1) {
+      managePosts.page = 1
+    }
+  } finally {
+    loading.postManage = false
+  }
+}
+
+const handleManagePostsPageChange = (page: number) => {
+  if (managePosts.page === page) return
+  managePosts.page = page
+  loadManagePosts()
+}
+
+const handleManagePostsSizeChange = (size: number) => {
+  managePosts.size = size
+  managePosts.page = 1
+  loadManagePosts()
 }
 
 const loadFavorites = async () => {
@@ -1261,6 +1431,76 @@ onMounted(async () => {
   border-radius: var(--radius-lg);
   background: #f3f6fb;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.my-posts-panel {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.my-posts-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.my-posts-head h3 {
+  margin: 0;
+}
+
+.my-posts-head p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.my-posts-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.my-posts-table :deep(.el-table__cell) {
+  vertical-align: top;
+}
+
+.my-post-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.my-post-title:hover {
+  color: var(--el-color-primary);
+}
+
+.my-post-meta {
+  margin: 2px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.my-posts-action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.reject-reason-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #f56c6c;
+  line-height: 1.4;
+}
+
+.my-posts-pagination {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .panel-head {
@@ -1638,6 +1878,8 @@ onMounted(async () => {
   }
 }
 </style>
+
+
 
 
 

@@ -481,73 +481,7 @@ const handleGenerate = async () => {
         ]
       }
 
-      // 输出请求数据到浏览器控制台
-      console.group('📝 [智能旅游线路规划] 前端准备发送的请求数据')
-      console.log('📍 请求时间:', new Date().toLocaleString('zh-CN'))
-      console.log('📦 完整请求参数:', requestData)
-      console.log('📋 请求参数摘要:')
-      console.log('  - 目的地:', requestData.destinations)
-      console.log('  - 行程天数:', requestData.duration)
-      console.log('  - 人数:', requestData.peopleCount)
-      console.log('  - 预算:', requestData.totalBudget || requestData.dailyBudget || requestData.budget)
-      console.log('  - 风格偏好:', requestData.stylePreferences)
-      console.log('  - 必看景点:', requestData.mustVisit)
-      console.log('  - 必须避开:', requestData.mustAvoid)
-      console.groupEnd()
-
       const route = await generateRoute(requestData)
-
-      // 输出返回的路线数据到浏览器控制台
-      console.group('🎉 [智能旅游线路规划] 前端接收到的路线数据')
-      console.log('📍 接收时间:', new Date().toLocaleString('zh-CN'))
-      console.log('📦 完整路线对象:', route)
-
-      if (route) {
-        console.log('✅ 路线基本信息:')
-        console.log('  - 路线ID:', route.id)
-        console.log('  - 路线标题:', route.title)
-        console.log('  - 路线描述:', route.description?.substring(0, 200) + (route.description?.length > 200 ? '...' : ''))
-        console.log('  - 行程天数:', route.duration)
-        console.log('  - 起点:', route.startLocation)
-        console.log('  - 终点:', route.endLocation)
-
-        if (route.itinerary && Array.isArray(route.itinerary)) {
-          console.log('📅 行程安排详情 (', route.itinerary.length, '天):')
-          route.itinerary.forEach((item: any, index: number) => {
-            console.log(`  第${item.day}天: ${item.title}`)
-            if (item.locations && item.locations.length > 0) {
-              console.log(`    包含 ${item.locations.length} 个景点`)
-            } else {
-              console.warn(`    ⚠️ 第${item.day}天没有景点信息`)
-            }
-          })
-        } else {
-          console.warn('  ⚠️ 没有行程安排数据')
-        }
-
-        if (route.tips && Array.isArray(route.tips)) {
-          console.log('💡 提示信息 (', route.tips.length, '条)')
-        } else {
-          console.warn('  ⚠️ 没有提示信息')
-        }
-
-        // 数据验证
-        const isValid = route.id && route.title && route.description && route.itinerary && route.itinerary.length > 0
-        if (isValid) {
-          console.log('✅ 路线数据验证通过')
-        } else {
-          console.error('❌ 路线数据验证失败，可能DeepSeek API未正确返回数据')
-          console.error('  缺失字段:', {
-            id: !route.id,
-            title: !route.title,
-            description: !route.description,
-            itinerary: !route.itinerary || route.itinerary.length === 0
-          })
-        }
-      } else {
-        console.error('❌ 路线数据为空')
-      }
-      console.groupEnd()
 
       ElMessage.success('路线生成成功！')
       showGenerateDialog.value = false

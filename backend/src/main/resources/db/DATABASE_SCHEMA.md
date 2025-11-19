@@ -222,7 +222,26 @@
 
 ---
 
-### 8. 活动报名表 (event_registrations)
+### 8. 首页推荐表 (home_recommendations)
+
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | BIGINT AUTO_INCREMENT | PRIMARY KEY | 推荐配置ID |
+| type | ENUM('FEATURED','HOT') | NOT NULL | 推荐类型 |
+| resource_id | BIGINT | NOT NULL | 资源ID（根据 source 指向不同表） |
+| source | ENUM('CULTURE_RESOURCE','COMMUNITY_POST','HERITAGE_ITEM') | NOT NULL | 资源来源 |
+| display_order | INTEGER | NOT NULL, DEFAULT 0 | 显示顺序 |
+| enabled | BOOLEAN | NOT NULL, DEFAULT TRUE | 是否启用 |
+| created_at | TIMESTAMP | NOT NULL | 创建时间 |
+| updated_at | TIMESTAMP | NOT NULL | 更新时间 |
+
+**索引**:
+- `idx_home_recommendations_type_order` - 类型与排序索引
+- `idx_home_recommendations_enabled` - 启用状态索引
+
+---
+
+### 9. 活动报名表 (event_registrations)
 
 | 字段名 | 类型 | 约束 | 说明 |
 |--------|------|------|------|
@@ -250,7 +269,7 @@
 
 ---
 
-### 9. 帖子点赞表 (post_likes)
+### 10. 帖子点赞表 (post_likes)
 
 | 字段名 | 类型 | 约束 | 说明 |
 |--------|------|------|------|

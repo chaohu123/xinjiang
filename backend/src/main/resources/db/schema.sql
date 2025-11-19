@@ -518,9 +518,6 @@ CREATE TABLE IF NOT EXISTS post_likes (
 CALL create_index_if_not_exists('post_likes', 'idx_post_likes_user', '(user_id)');
 CALL create_index_if_not_exists('post_likes', 'idx_post_likes_post', '(post_id)');
 
--- =====================================================
--- 21. 收藏表 (favorites)
--- =====================================================
 CREATE TABLE IF NOT EXISTS favorites (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -539,6 +536,28 @@ CREATE TABLE IF NOT EXISTS favorites (
 CALL create_index_if_not_exists('favorites', 'idx_favorites_user', '(user_id)');
 CALL create_index_if_not_exists('favorites', 'idx_favorites_resource', '(resource_type, resource_id)');
 CALL create_index_if_not_exists('favorites', 'idx_favorites_created_at', '(user_id, created_at DESC)');
+
+-- =====================================================
+-- 22. 首页推荐表 (home_recommendations)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS home_recommendations (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    type ENUM('FEATURED', 'HOT') NOT NULL,
+    resource_id BIGINT NOT NULL,
+    source ENUM('CULTURE_RESOURCE', 'COMMUNITY_POST', 'HERITAGE_ITEM') NOT NULL,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='首页推荐配置表';
+
+-- 为首页推荐表创建索引
+CALL create_index_if_not_exists('home_recommendations', 'idx_home_recommendations_type_order', '(type, display_order)');
+CALL create_index_if_not_exists('home_recommendations', 'idx_home_recommendations_enabled', '(enabled)');
+
+-- 兼容已有环境，更新 source 枚举，确保包含文化遗产
+ALTER TABLE home_recommendations
+    MODIFY COLUMN source ENUM('CULTURE_RESOURCE', 'COMMUNITY_POST', 'HERITAGE_ITEM') NOT NULL;
 
 -- =====================================================
 -- 创建更新时间触发器

@@ -130,17 +130,6 @@
                         <span class="tag-text">{{ loc.name }}</span>
                       </div>
                       <p v-if="loc.description" class="location-description" style="white-space: pre-line;">{{ loc.description }}</p>
-                      <div v-if="loc.lat && loc.lng" class="location-actions">
-                        <el-button
-                          text
-                          type="primary"
-                          size="small"
-                          @click="openGoogleMaps(loc.lat, loc.lng, loc.name)"
-                        >
-                          <el-icon><MapLocation /></el-icon>
-                          查看地图
-                        </el-button>
-                      </div>
                     </div>
                   </div>
 
@@ -208,11 +197,6 @@ import { getRouteDetail, favoriteRoute, unfavoriteRoute } from '@/api/route'
 import type { RouteDetail } from '@/types/route'
 import { Clock, MapLocation, Location, Star, StarFilled } from '@element-plus/icons-vue'
 import { requireAuth } from '@/utils/auth'
-
-const openGoogleMaps = (lat: number, lng: number, name: string) => {
-  const url = `https://maps.google.com/?q=${lat},${lng}`
-  window.open(url, '_blank')
-}
 
 const route = useRoute()
 const router = useRouter()

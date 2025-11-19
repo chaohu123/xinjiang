@@ -4,6 +4,7 @@ import com.example.culturalxinjiang.dto.response.MapPoiResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.repository.CultureResourceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -17,6 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MapService {
@@ -34,43 +36,60 @@ public class MapService {
                                   boolean cluster,
                                   Integer zoom,
                                   Integer limit) {
-        List<MapPoiResponse.MapPoi> allPois = cultureResourceRepository.findAllWithLocation().stream()
-                .map(this::mapToPoi)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        try {
+            List<MapPoiResponse.MapPoi> allPois = cultureResourceRepository.findAllWithLocation().stream()
+                    .map(this::mapToPoi)
+                    .filter(Objects::nonNull)
+                    .filter(poi -> poi.getTitle() != null) // 确保标题不为空
+                    .collect(Collectors.toList());
 
-        Map<String, Long> stats = allPois.stream()
-                .collect(Collectors.groupingBy(MapPoiResponse.MapPoi::getCategory, Collectors.counting()));
-        stats.put("total", (long) allPois.size());
+            Map<String, Long> stats = allPois.stream()
+                    .collect(Collectors.groupingBy(MapPoiResponse.MapPoi::getCategory, Collectors.counting()));
+            stats.put("total", (long) allPois.size());
 
-        List<MapPoiResponse.MapPoi> filteredAll = allPois.stream()
-                .filter(poi -> matchesKeyword(poi, keyword))
-                .filter(poi -> matchesCategory(poi, category))
-                .filter(poi -> matchesBounds(poi, bounds))
-                .collect(Collectors.toList());
+            List<MapPoiResponse.MapPoi> filteredAll = allPois.stream()
+                    .filter(poi -> matchesKeyword(poi, keyword))
+                    .filter(poi -> matchesCategory(poi, category))
+                    .filter(poi -> matchesBounds(poi, bounds))
+                    .collect(Collectors.toList());
 
-        long filteredTotal = filteredAll.size();
-        List<MapPoiResponse.MapPoi> filtered = filteredAll.stream()
-                .limit(limit != null && limit > 0 ? limit : Long.MAX_VALUE)
-                .collect(Collectors.toList());
+            long filteredTotal = filteredAll.size();
+            List<MapPoiResponse.MapPoi> filtered = filteredAll.stream()
+                    .limit(limit != null && limit > 0 ? limit : Long.MAX_VALUE)
+                    .collect(Collectors.toList());
 
-        List<MapPoiResponse.MapCluster> clusters = cluster
-                ? buildClusters(filteredAll, zoom != null ? zoom : 5)
-                : List.of();
+            List<MapPoiResponse.MapCluster> clusters = cluster
+                    ? buildClusters(filteredAll, zoom != null ? zoom : 5)
+                    : List.of();
 
-        return MapPoiResponse.builder()
-                .pois(filtered)
-                .clusters(clusters)
-                .stats(stats)
-                .total((long) allPois.size())
-                .filtered(filteredTotal)
-                .clustered(cluster)
-                .build();
+            return MapPoiResponse.builder()
+                    .pois(filtered)
+                    .clusters(clusters)
+                    .stats(stats)
+                    .total((long) allPois.size())
+                    .filtered(filteredTotal)
+                    .clustered(cluster)
+                    .build();
+        } catch (Exception e) {
+            // 记录错误并返回空结果，避免 500 错误
+            log.error("获取地图POI失败", e);
+            return MapPoiResponse.builder()
+                    .pois(List.of())
+                    .clusters(List.of())
+                    .stats(Map.of("total", 0L))
+                    .total(0L)
+                    .filtered(0L)
+                    .clustered(cluster)
+                    .build();
+        }
     }
 
     private boolean matchesKeyword(MapPoiResponse.MapPoi poi, String keyword) {
         if (!StringUtils.hasText(keyword)) {
             return true;
+        }
+        if (poi == null || poi.getTitle() == null) {
+            return false;
         }
         String lowerKeyword = keyword.toLowerCase(Locale.ROOT);
         return poi.getTitle().toLowerCase(Locale.ROOT).contains(lowerKeyword)
@@ -90,6 +109,9 @@ public class MapService {
         if (bounds == null) {
             return true;
         }
+        if (poi == null || poi.getLat() == null || poi.getLng() == null) {
+            return false;
+        }
         return poi.getLat() >= bounds.getSouth()
                 && poi.getLat() <= bounds.getNorth()
                 && poi.getLng() >= bounds.getWest()
@@ -97,13 +119,16 @@ public class MapService {
     }
 
     private List<MapPoiResponse.MapCluster> buildClusters(List<MapPoiResponse.MapPoi> pois, Integer zoom) {
-        if (pois.isEmpty()) {
+        if (pois == null || pois.isEmpty()) {
             return List.of();
         }
         double bucketSize = deriveBucketSize(zoom);
         Map<String, List<MapPoiResponse.MapPoi>> buckets = new ConcurrentHashMap<>();
 
         for (MapPoiResponse.MapPoi poi : pois) {
+            if (poi == null || poi.getLat() == null || poi.getLng() == null) {
+                continue; // 跳过无效的POI
+            }
             String key = bucketKey(poi.getLat(), poi.getLng(), bucketSize);
             buckets.computeIfAbsent(key, ignored -> new ArrayList<>()).add(poi);
         }
@@ -145,28 +170,39 @@ public class MapService {
     }
 
     private MapPoiResponse.MapPoi mapToPoi(CultureResource resource) {
+        if (resource == null) {
+            return null;
+        }
         if (resource.getLocation() == null
                 || resource.getLocation().getLat() == null
                 || resource.getLocation().getLng() == null) {
             return null;
         }
-        String category = resolveCategory(resource);
-        return MapPoiResponse.MapPoi.builder()
-                .id(resource.getId())
-                .originRefId(resource.getId())
-                .originType("CULTURE")
-                .contentType(resource.getType() != null ? resource.getType().name().toLowerCase(Locale.ROOT) : "culture")
-                .category(category)
-                .title(resource.getTitle())
-                .lat(resource.getLocation().getLat())
-                .lng(resource.getLocation().getLng())
-                .region(resource.getRegion())
-                .cover(resource.getCover())
-                .tags(resource.getTags() != null ? new ArrayList<>(resource.getTags()) : List.of())
-                .summary(resource.getDescription())
-                .views(resource.getViews())
-                .favorites(resource.getFavorites())
-                .build();
+        if (resource.getTitle() == null || resource.getTitle().trim().isEmpty()) {
+            return null;
+        }
+        try {
+            String category = resolveCategory(resource);
+            return MapPoiResponse.MapPoi.builder()
+                    .id(resource.getId())
+                    .originRefId(resource.getId())
+                    .originType("CULTURE")
+                    .contentType(resource.getType() != null ? resource.getType().name().toLowerCase(Locale.ROOT) : "culture")
+                    .category(category)
+                    .title(resource.getTitle())
+                    .lat(resource.getLocation().getLat())
+                    .lng(resource.getLocation().getLng())
+                    .region(resource.getRegion())
+                    .cover(resource.getCover())
+                    .tags(resource.getTags() != null ? new ArrayList<>(resource.getTags()) : List.of())
+                    .summary(resource.getDescription())
+                    .views(resource.getViews() != null ? resource.getViews() : 0)
+                    .favorites(resource.getFavorites() != null ? resource.getFavorites() : 0)
+                    .build();
+        } catch (Exception e) {
+            // 如果映射过程中出现异常，返回 null
+            return null;
+        }
     }
 
     private String resolveCategory(CultureResource resource) {

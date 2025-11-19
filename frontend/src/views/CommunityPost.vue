@@ -377,7 +377,8 @@ const canEdit = computed(() => {
   if (!isAuthor.value || !postDetail.value) {
     return false
   }
-  return postDetail.value.status === 'rejected' || postDetail.value.status === 'pending'
+  const status = (postDetail.value.status || '').toLowerCase()
+  return ['rejected', 'pending', 'approved'].includes(status)
 })
 
 // 获取投稿状态标签

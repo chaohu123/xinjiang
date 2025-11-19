@@ -129,30 +129,19 @@ public class RouteService {
             budget = request.getDailyBudget() * request.getDuration();
         }
 
-        log.info("开始生成路线：目的地={}, 天数={}, 人数={}, 预算={}",
-            request.getDestinations(), request.getDuration(), request.getPeopleCount(), budget);
-
-        // 调用AI服务生成路线（记录开始时间）
-        long aiCallStartTime = System.currentTimeMillis();
+        // 调用AI服务生成路线
         AIRouteResponse aiResponse;
-        String aiProvider = "unknown";
         boolean aiCallSuccess = false;
         String aiError = null;
 
         try {
             aiResponse = aiService.generateRoute(request);
             aiCallSuccess = true;
-            aiProvider = aiService.getProvider(); // 需要添加getter方法
-            log.info("DeepSeek API调用成功，Provider: {}", aiProvider);
         } catch (Exception e) {
             aiCallSuccess = false;
             aiError = e.getMessage();
-            log.error("DeepSeek API调用失败: {}", aiError, e);
             throw e; // 重新抛出异常
         }
-
-        long aiCallEndTime = System.currentTimeMillis();
-        long aiCallDuration = aiCallEndTime - aiCallStartTime;
 
         // 构建路线主题（基于风格偏好或兴趣标签）
         String theme = "general";
@@ -165,13 +154,16 @@ public class RouteService {
         // 获取当前登录用户
         User user = getCurrentUser();
 
+        // 计算总里程（根据路线中的所有位置点）
+        Double totalDistance = calculateRouteDistance(aiResponse);
+
         // 创建Route实体
         Route route = Route.builder()
                 .title(aiResponse.getTitle())
                 .description(aiResponse.getDescription())
                 .theme(theme)
                 .duration(request.getDuration())
-                .distance(calculateDistance(startLocation, endLocation))
+                .distance(totalDistance)
                 .startLocation(startLocation)
                 .endLocation(endLocation)
                 .waypoints(0)
@@ -256,21 +248,16 @@ public class RouteService {
         // 保存路线到数据库
         route = routeRepository.save(route);
 
-        log.info("路线生成成功，ID={}, 标题={}", route.getId(), route.getTitle());
-
         RouteDetailResponse response = mapToDetailResponse(route);
 
         // 构建调试信息
         ApiResponse.DebugInfo debugInfo = ApiResponse.DebugInfo.builder()
                 .apiCallStatus(aiCallSuccess ? "成功" : "失败")
                 .apiCallSuccess(aiCallSuccess)
-                .apiResponseTime(aiCallDuration + "ms")
-                .aiProvider(aiProvider)
+                .apiResponseTime("")
+                .aiProvider("")
                 .apiError(aiError)
                 .build();
-
-        log.info("路线生成完成，DeepSeek API调用状态: {}, 耗时: {}ms",
-                aiCallSuccess ? "成功" : "失败", aiCallDuration);
 
         return new RouteGenerationResult(response, debugInfo);
     }
@@ -281,10 +268,64 @@ public class RouteService {
         return generateRouteWithDebug(request).getRoute();
     }
 
-    private Double calculateDistance(String start, String end) {
-        // Simplified distance calculation
-        // In real implementation, use geocoding and distance calculation APIs
-        return 100.0; // placeholder
+    /**
+     * 根据路线中的所有位置点计算总里程
+     */
+    private Double calculateRouteDistance(AIRouteResponse aiResponse) {
+        if (aiResponse == null || aiResponse.getItinerary() == null || aiResponse.getItinerary().isEmpty()) {
+            return 100.0; // 默认值
+        }
+
+        List<AIRouteResponse.Location> allLocations = new ArrayList<>();
+
+        // 收集所有有坐标的位置点
+        for (AIRouteResponse.ItineraryItem item : aiResponse.getItinerary()) {
+            if (item.getLocations() != null) {
+                for (AIRouteResponse.Location loc : item.getLocations()) {
+                    if (loc.getLat() != null && loc.getLng() != null) {
+                        allLocations.add(loc);
+                    }
+                }
+            }
+        }
+
+        if (allLocations.size() < 2) {
+            return 100.0; // 如果位置点少于2个，返回默认值
+        }
+
+        // 计算所有相邻位置点之间的距离总和
+        double totalDistance = 0.0;
+        for (int i = 0; i < allLocations.size() - 1; i++) {
+            AIRouteResponse.Location loc1 = allLocations.get(i);
+            AIRouteResponse.Location loc2 = allLocations.get(i + 1);
+
+            double distance = calculateHaversineDistance(
+                loc1.getLat(), loc1.getLng(),
+                loc2.getLat(), loc2.getLng()
+            );
+            totalDistance += distance;
+        }
+
+        // 四舍五入到小数点后1位
+        return Math.round(totalDistance * 10.0) / 10.0;
+    }
+
+    /**
+     * 使用 Haversine 公式计算两点之间的距离（单位：公里）
+     */
+    private double calculateHaversineDistance(double lat1, double lng1, double lat2, double lng2) {
+        final int EARTH_RADIUS_KM = 6371; // 地球半径（公里）
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                   Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return EARTH_RADIUS_KM * c;
     }
 
     private RouteResponse mapToResponse(Route route) {

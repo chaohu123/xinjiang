@@ -206,8 +206,35 @@
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="视频链接">
-          <el-input v-model="form.videoUrl" placeholder="可选" />
+        <el-form-item label="视频">
+          <div class="upload-line">
+            <el-radio-group v-model="videoUploadType">
+              <el-radio-button label="url">URL链接</el-radio-button>
+              <el-radio-button label="upload">本地上传</el-radio-button>
+            </el-radio-group>
+            <el-input
+              v-if="videoUploadType === 'url'"
+              v-model="form.videoUrl"
+              placeholder="视频URL"
+              style="flex: 1"
+            />
+            <el-upload
+              v-else
+              :action="''"
+              :auto-upload="false"
+              :on-change="handleVideoFileChange"
+              :show-file-list="false"
+              accept="video/*"
+            >
+              <el-button type="primary">选择视频</el-button>
+            </el-upload>
+          </div>
+          <video
+            v-if="form.videoUrl"
+            :src="form.videoUrl"
+            controls
+            style="width: 100%; max-width: 500px; margin-top: 10px"
+          />
         </el-form-item>
         <el-form-item label="标签">
           <div class="tags-input">
@@ -259,6 +286,7 @@ import {
   updateHeritageItem,
   deleteHeritageItem,
   uploadCultureMedia,
+  uploadHeritageMedia,
   type HeritageRequestPayload,
 } from '@/api/admin'
 
@@ -278,6 +306,7 @@ const editingItem = ref<HeritageItem | null>(null)
 
 const coverUploadType = ref<'url' | 'upload'>('url')
 const imageUploadType = ref<'url' | 'upload'>('url')
+const videoUploadType = ref<'url' | 'upload'>('url')
 const newImageUrl = ref('')
 const newTag = ref('')
 
@@ -330,6 +359,7 @@ const handleAdd = () => {
   form.value = { ...defaultForm, images: [], tags: [] }
   coverUploadType.value = 'url'
   imageUploadType.value = 'url'
+  videoUploadType.value = 'url'
   newImageUrl.value = ''
   newTag.value = ''
   dialogVisible.value = true
@@ -352,6 +382,7 @@ const handleEdit = (item: HeritageItem) => {
   }
   coverUploadType.value = item.cover ? 'url' : 'url'
   imageUploadType.value = 'url'
+  videoUploadType.value = item.videoUrl ? (item.videoUrl.startsWith('http') ? 'url' : 'upload') : 'url'
   newImageUrl.value = ''
   newTag.value = ''
   dialogVisible.value = true
@@ -407,7 +438,7 @@ const handleDelete = async (item: HeritageItem) => {
 const handleCoverFileChange = async (file: UploadFile) => {
   if (!file.raw) return
   try {
-    const response = await uploadCultureMedia(file.raw)
+    const response = await uploadHeritageMedia(file.raw)
     form.value.cover = response.url
     ElMessage.success('封面上传成功')
   } catch (error) {
@@ -419,7 +450,7 @@ const handleCoverFileChange = async (file: UploadFile) => {
 const handleImageFileChange = async (file: UploadFile) => {
   if (!file.raw) return
   try {
-    const response = await uploadCultureMedia(file.raw)
+    const response = await uploadHeritageMedia(file.raw)
     if (!form.value.images) form.value.images = []
     form.value.images.push(response.url)
     ElMessage.success('图片上传成功')
@@ -463,6 +494,19 @@ const addTag = () => {
 
 const removeTag = (index: number) => {
   form.value.tags?.splice(index, 1)
+}
+
+const handleVideoFileChange = async (file: UploadFile) => {
+  if (!file.raw) return
+  try {
+    // 使用非遗专用的上传接口
+    const response = await uploadHeritageMedia(file.raw)
+    form.value.videoUrl = response.url
+    ElMessage.success('视频上传成功')
+  } catch (error) {
+    console.error('视频上传失败:', error)
+    ElMessage.error('视频上传失败')
+  }
 }
 
 onMounted(() => {
@@ -532,6 +576,9 @@ onMounted(() => {
   gap: 8px;
 }
 </style>
+
+
+
 
 
 

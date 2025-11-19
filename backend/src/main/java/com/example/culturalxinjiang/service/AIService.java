@@ -107,7 +107,7 @@ public class AIService {
             messages.add(message);
             aiRequest.setMessages(messages);
             aiRequest.setTemperature(0.7);
-            aiRequest.setMaxTokens(8000); // 增加最大 token 数，允许生成更详细的路线（从4000增加到8000）
+            aiRequest.setMaxTokens(16000); // 增加最大 token 数，允许生成更详细的路线（DeepSeek 支持最多 16k tokens）
 
             // 发送请求到 AI API
             log.debug("调用 {} API: {}", provider, apiUrl);
@@ -119,24 +119,8 @@ public class AIService {
 
             HttpEntity<OpenAIRequest> requestEntity = new HttpEntity<>(aiRequest, headers);
 
-            // ========== 输出发送给 DeepSeek 的请求数据 ==========
-            String requestJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(aiRequest);
-            log.info("========== 发送给 DeepSeek API 的请求数据 ==========");
-            log.info("API URL: {}", apiUrl);
-            log.info("API Provider: {}", provider);
-            log.info("请求体:\n{}", requestJson);
-            log.info("================================================");
-
-            // 同时输出到控制台
-            System.out.println("\n========== 发送给 DeepSeek API 的请求数据 ==========");
-            System.out.println("API URL: " + apiUrl);
-            System.out.println("API Provider: " + provider);
-            System.out.println("请求体:");
-            System.out.println(requestJson);
-            System.out.println("================================================\n");
-
             // 发送请求
-            log.info("正在调用 {} API 生成路线，URL: {}", provider, apiUrl);
+            log.debug("正在调用 {} API 生成路线", provider);
 
             ResponseEntity<OpenAIResponse> responseEntity;
             try {
@@ -167,75 +151,19 @@ public class AIService {
 
             String content = response.getChoices().get(0).getMessage().getContent();
 
-            // ========== 输出 DeepSeek 返回的完整原始数据 ==========
-            log.info("========== DeepSeek API 返回的完整原始数据 ==========");
-            log.info("响应状态码: {}", responseEntity.getStatusCode());
-            log.info("完整响应内容:\n{}", content);
-            log.info("响应内容长度: {} 字符", content.length());
-            log.info("================================================");
-
-            // 同时输出到控制台（System.out）以便查看
-            System.out.println("\n========== DeepSeek API 返回的完整原始数据 ==========");
-            System.out.println("响应状态码: " + responseEntity.getStatusCode());
-            System.out.println("完整响应内容:");
-            System.out.println(content);
-            System.out.println("响应内容长度: " + content.length() + " 字符");
-            System.out.println("================================================\n");
-
             // 解析AI返回的JSON
             AIRouteResponse aiRouteResponse = parseAIResponse(content, request);
 
-            // ========== 输出解析后的结构化数据 ==========
-            log.info("========== 解析后的结构化数据 ==========");
-            log.info("路线标题: {}", aiRouteResponse.getTitle());
-            log.info("路线描述: {}", aiRouteResponse.getDescription());
-            log.info("行程天数: {}", aiRouteResponse.getItinerary() != null ? aiRouteResponse.getItinerary().size() : 0);
-            log.info("提示数量: {}", aiRouteResponse.getTips() != null ? aiRouteResponse.getTips().size() : 0);
+            // 只输出是否成功接收数据
+            System.out.println("接收数据成功");
+            log.info("接收数据成功");
 
-            if (aiRouteResponse.getItinerary() != null) {
-                for (AIRouteResponse.ItineraryItem item : aiRouteResponse.getItinerary()) {
-                    log.info("第{}天 - 标题: {}", item.getDay(), item.getTitle());
-                    log.info("  描述: {}", item.getDescription());
-                    log.info("  景点数量: {}", item.getLocations() != null ? item.getLocations().size() : 0);
-                    if (item.getLocations() != null) {
-                        for (AIRouteResponse.Location loc : item.getLocations()) {
-                            log.info("    景点: {} (lat: {}, lng: {})", loc.getName(), loc.getLat(), loc.getLng());
-                            if (loc.getDescription() != null) {
-                                log.info("      描述: {}", loc.getDescription());
-                            }
-                        }
-                    }
-                    log.info("  住宿: {}", item.getAccommodation());
-                    log.info("  餐饮: {}", item.getMeals());
-                }
-            }
-
-            if (aiRouteResponse.getTips() != null) {
-                log.info("提示信息:");
-                for (String tip : aiRouteResponse.getTips()) {
-                    log.info("  - {}", tip);
-                }
-            }
-
-            // 输出解析后的JSON格式数据到控制台
-            try {
-                String jsonOutput = objectMapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(aiRouteResponse);
-                System.out.println("\n========== 解析后的结构化数据 (JSON格式) ==========");
-                System.out.println(jsonOutput);
-                System.out.println("================================================\n");
-            } catch (Exception e) {
-                log.warn("无法将解析后的数据转换为JSON: {}", e.getMessage());
-            }
-
-            log.info("==========================================");
-            log.info("成功解析AI响应，包含 {} 天的行程",
-                    aiRouteResponse.getItinerary() != null ? aiRouteResponse.getItinerary().size() : 0);
             return aiRouteResponse;
 
         } catch (RuntimeException e) {
             // 如果是我们主动抛出的异常，直接抛出，不要使用默认数据
-            log.error("AI服务调用失败: {}", e.getMessage(), e);
+            System.out.println("失败");
+            log.error("失败: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
             log.error("调用AI服务时发生未预期的错误，Provider: {}, URL: {}", provider, apiUrl, e);
@@ -425,7 +353,7 @@ public class AIService {
         prompt.append("     * 优先等级（必去/推荐/可选）\n");
         prompt.append("     * 替代方案（如果该景点不可行，推荐的替代景点）\n");
         prompt.append("     * 精确的经纬度坐标（lat和lng，必须是新疆境内的真实坐标）\n");
-        prompt.append("     * Google Maps 链接（格式：https://maps.google.com/?q=lat,lng）\n");
+        prompt.append("     * 注意事项（必须包含，如：尊重当地居民隐私、不要随意进入民居、需要携带物品、禁止事项等）\n");
         prompt.append("   - 交通信息（必须详细说明）：\n");
         prompt.append("     * 景点之间的交通方式（自驾/包车/公共交通/步行）\n");
         prompt.append("     * 具体距离（公里数）\n");
@@ -497,10 +425,9 @@ public class AIService {
         prompt.append("          \"name\": \"景点名称（真实存在的新疆景点）\",\n");
         prompt.append("          \"lat\": 43.8833,\n");
         prompt.append("          \"lng\": 88.1333,\n");
-        prompt.append("          \"description\": \"景点详细描述（100-150字，包含：历史背景、文化意义、自然特色、游览亮点、拍照打卡点、最佳观赏角度、开放时间、门票价格、最佳游览时间、建议游览时长、游览路线建议、特色活动、注意事项）\",\n");
+        prompt.append("          \"description\": \"景点详细描述（100-150字，包含：历史背景、文化意义、自然特色、游览亮点、拍照打卡点、最佳观赏角度、开放时间、门票价格、最佳游览时间、建议游览时长、游览路线建议、特色活动、注意事项（必须包含，如：尊重当地居民隐私、不要随意进入民居等））\",\n");
         prompt.append("          \"priority\": \"必去/推荐/可选\",\n");
-        prompt.append("          \"alternative\": \"替代景点名称（如果该景点不可行）\",\n");
-        prompt.append("          \"googleMapsLink\": \"https://maps.google.com/?q=43.8833,88.1333\"\n");
+        prompt.append("          \"alternative\": \"替代景点名称（如果该景点不可行）\"\n");
         prompt.append("        }\n");
         prompt.append("      ],\n");
         prompt.append("      \"accommodation\": {\n");
@@ -564,12 +491,26 @@ public class AIService {
     }
 
     /**
+     * 从已清理的 JSON 内容解析（内部方法，避免重复清理）
+     */
+    private AIRouteResponse parseAIResponseFromCleanedJson(String jsonContent, GenerateRouteRequest request) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(jsonContent);
+            return buildRouteResponseFromJson(rootNode, request);
+        } catch (Exception e) {
+            log.error("从已清理的 JSON 解析失败: {}", e.getMessage());
+            throw new RuntimeException("解析修复后的 JSON 失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * 解析AI返回的JSON响应
      */
     private AIRouteResponse parseAIResponse(String content, GenerateRouteRequest request) {
+        String jsonContent = null;
         try {
             // 尝试提取JSON部分（AI可能返回带markdown代码块的JSON）
-            String jsonContent = content.trim();
+            jsonContent = content.trim();
             log.debug("原始AI响应内容: {}", jsonContent);
 
             if (jsonContent.contains("```json")) {
@@ -588,11 +529,61 @@ public class AIService {
                 }
             }
 
+            // 先检测并修复不完整的 JSON（如果响应被截断）
+            // 注意：在清理之前先修复，因为清理过程可能会因为不完整的 JSON 而失败
+            jsonContent = fixIncompleteJson(jsonContent);
+
             // 清理 JSON 内容：移除中文标点符号和其他可能导致解析错误的字符
             jsonContent = cleanJsonContent(jsonContent);
 
+            log.debug("准备解析的JSON内容长度: {} 字符", jsonContent.length());
+            if (jsonContent.length() > 10000) {
+                log.debug("JSON内容前1000字符: {}", jsonContent.substring(0, Math.min(1000, jsonContent.length())));
+            } else {
             log.debug("准备解析的JSON内容: {}", jsonContent);
+            }
             JsonNode rootNode = objectMapper.readTree(jsonContent);
+            return buildRouteResponseFromJson(rootNode, request);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("JSON解析失败，错误信息: {}", e.getMessage());
+            log.error("原始内容长度: {} 字符", content != null ? content.length() : 0);
+
+            // 如果 jsonContent 未初始化，使用原始 content
+            if (jsonContent == null) {
+                jsonContent = content != null ? content.trim() : "";
+            }
+
+            // 尝试修复 JSON（可能是响应被截断）
+            String fixedContent = attemptJsonFix(jsonContent, e);
+            if (fixedContent != null && !fixedContent.equals(jsonContent)) {
+                try {
+                    log.info("尝试使用修复后的 JSON 重新解析");
+                    // 重新清理和修复
+                    fixedContent = cleanJsonContent(fixedContent);
+                    fixedContent = fixIncompleteJson(fixedContent);
+                    JsonNode rootNode = objectMapper.readTree(fixedContent);
+                    log.info("JSON 修复成功，使用修复后的内容重新解析");
+                    // 直接使用修复后的内容解析（跳过重复的清理步骤）
+                    return parseAIResponseFromCleanedJson(fixedContent, request);
+                } catch (Exception retryException) {
+                    log.error("修复后的 JSON 仍无法解析: {}", retryException.getMessage());
+                    throw new RuntimeException("AI返回的JSON格式不正确，且无法自动修复: " + e.getMessage() +
+                            "。可能是响应被截断，建议增加 maxTokens 设置或简化请求内容。", e);
+                }
+            }
+
+            throw new RuntimeException("AI返回的JSON格式不正确: " + e.getMessage() +
+                    "。可能是响应被截断，建议检查 maxTokens 设置或简化请求内容。", e);
+        } catch (Exception e) {
+            log.error("解析AI响应时发生错误，原始内容: {}", content, e);
+            throw new RuntimeException("解析AI响应失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 从 JSON 节点构建路线响应
+     */
+    private AIRouteResponse buildRouteResponseFromJson(JsonNode rootNode, GenerateRouteRequest request) {
             AIRouteResponse response = new AIRouteResponse();
 
             // 提取起点和终点（用于生成默认标题）
@@ -664,8 +655,9 @@ public class AIService {
 
                             // 解析地点描述（包含开放时间、门票、最佳游览时间等详细信息）
                             StringBuilder locDescBuilder = new StringBuilder();
-                            if (locNode.has("description")) {
-                                locDescBuilder.append(locNode.get("description").asText());
+                            String originalDescription = locNode.has("description") ? locNode.get("description").asText() : "";
+                            if (!originalDescription.isEmpty()) {
+                                locDescBuilder.append(originalDescription);
                             }
 
                             // 解析优先等级
@@ -684,11 +676,13 @@ public class AIService {
                                 }
                             }
 
-                            // 解析Google Maps链接
-                            if (locNode.has("googleMapsLink") && !locNode.get("googleMapsLink").isNull()) {
-                                String mapsLink = locNode.get("googleMapsLink").asText();
-                                if (!mapsLink.isEmpty()) {
-                                    locDescBuilder.append("\n【地图链接】").append(mapsLink);
+                            // 提取注意事项（从原始描述中提取，替换地图链接）
+                            // 检查描述中是否已经包含【注意事项】标签
+                            String currentDesc = locDescBuilder.toString();
+                            if (!currentDesc.contains("【注意事项】") && !currentDesc.contains("注意事项：")) {
+                                String notes = extractNotes(originalDescription);
+                                if (notes != null && !notes.isEmpty()) {
+                                    locDescBuilder.append("\n【注意事项】").append(notes);
                                 }
                             }
 
@@ -883,14 +877,365 @@ public class AIService {
             log.info("成功解析AI响应: 标题={}, 行程天数={}, 提示数={}",
                     response.getTitle(), itinerary.size(), tips.size());
             return response;
+    }
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            log.error("JSON解析失败，原始内容: {}", content, e);
-            throw new RuntimeException("AI返回的JSON格式不正确: " + e.getMessage(), e);
-        } catch (Exception e) {
-            log.error("解析AI响应时发生错误，原始内容: {}", content, e);
-            throw new RuntimeException("解析AI响应失败: " + e.getMessage(), e);
+    /**
+     * 尝试修复 JSON（当解析失败时）
+     */
+    private String attemptJsonFix(String jsonContent, Exception originalException) {
+        if (jsonContent == null || jsonContent.isEmpty()) {
+            return null;
         }
+
+        // 如果错误信息包含 "expecting closing quote"，说明有未闭合的字符串
+        if (originalException.getMessage().contains("expecting closing quote")) {
+            log.warn("检测到未闭合的字符串，尝试修复");
+
+            // 从错误信息中提取行号和列号（如果可用）
+            String errorMsg = originalException.getMessage();
+            int errorLine = 1;
+            int errorCol = 0;
+
+            // 尝试从错误信息中提取行号和列号
+            // 错误信息格式: "... line: 226, column: 84]"
+            try {
+                // 查找 "line:" 后面的数字
+                int lineIndex = errorMsg.indexOf("line:");
+                if (lineIndex >= 0) {
+                    int lineStart = lineIndex + 5;
+                    // 跳过空格
+                    while (lineStart < errorMsg.length() && Character.isWhitespace(errorMsg.charAt(lineStart))) {
+                        lineStart++;
+                    }
+                    // 找到数字结束位置（逗号或空格或]）
+                    int lineEnd = lineStart;
+                    while (lineEnd < errorMsg.length() && Character.isDigit(errorMsg.charAt(lineEnd))) {
+                        lineEnd++;
+                    }
+                    if (lineEnd > lineStart) {
+                        errorLine = Integer.parseInt(errorMsg.substring(lineStart, lineEnd).trim());
+                    }
+                }
+
+                // 查找 "column:" 后面的数字
+                int colIndex = errorMsg.indexOf("column:");
+                if (colIndex >= 0) {
+                    int colStart = colIndex + 7;
+                    // 跳过空格
+                    while (colStart < errorMsg.length() && Character.isWhitespace(errorMsg.charAt(colStart))) {
+                        colStart++;
+                    }
+                    // 找到数字结束位置（] 或空格）
+                    int colEnd = colStart;
+                    while (colEnd < errorMsg.length() && Character.isDigit(errorMsg.charAt(colEnd))) {
+                        colEnd++;
+                    }
+                    if (colEnd > colStart) {
+                        errorCol = Integer.parseInt(errorMsg.substring(colStart, colEnd).trim());
+                    }
+                }
+        } catch (Exception e) {
+                log.debug("无法从错误信息中提取行号和列号: {}", e.getMessage());
+            }
+
+            log.info("错误位置: 行 {}, 列 {}", errorLine, errorCol);
+
+            // 方法1: 从后往前找到最后一个未闭合的字符串字段并移除
+            StringBuilder fixed = new StringBuilder(jsonContent);
+
+            // 从后往前扫描，找到最后一个 ":" 后面未闭合的字符串
+            int lastColon = fixed.lastIndexOf(":");
+            if (lastColon > 0) {
+                // 找到最后一个字段的键名开始位置
+                int keyStart = fixed.lastIndexOf("\"", lastColon);
+                if (keyStart > 0) {
+                    // 找到键名结束位置
+                    int keyEnd = fixed.indexOf("\"", keyStart + 1);
+                    if (keyEnd > keyStart && keyEnd < lastColon) {
+                        // 找到这个字段的开始位置（向前查找逗号、大括号或中括号）
+                        int fieldStart = -1;
+                        for (int i = lastColon - 1; i >= 0; i--) {
+                            char c = fixed.charAt(i);
+                            if (c == ',') {
+                                fieldStart = i + 1;
+                                break;
+                            } else if (c == '{' || c == '[') {
+                                fieldStart = i;
+                                break;
+                            } else if (c == '}' || c == ']') {
+                                // 跳过已闭合的对象或数组
+                                break;
+                            }
+                        }
+
+                        if (fieldStart >= 0) {
+                            // 移除从字段开始到结尾的所有内容
+                            int removeStart = fieldStart;
+                            // 如果前面有换行，也一起移除
+                            while (removeStart > 0 && Character.isWhitespace(fixed.charAt(removeStart - 1))) {
+                                removeStart--;
+                            }
+                            fixed.delete(removeStart, fixed.length());
+                            log.info("移除了最后一个不完整的字段（从位置 {} 开始），新长度: {}", removeStart, fixed.length());
+
+                            // 确保 JSON 结构完整（添加缺失的闭合括号）
+                            fixed = ensureJsonComplete(fixed);
+                            return fixed.toString();
+                        }
+                    }
+                }
+            }
+
+            // 方法2: 如果方法1失败，尝试从指定位置移除未闭合的字符串
+            if (errorCol > 0) {
+                // 计算实际字符位置（考虑换行符）
+                int charPos = 0;
+                int currentLine = 1;
+                for (int i = 0; i < fixed.length() && currentLine < errorLine; i++) {
+                    if (fixed.charAt(i) == '\n') {
+                        currentLine++;
+                    }
+                    charPos = i;
+                }
+                charPos += errorCol;
+
+                if (charPos < fixed.length()) {
+                    // 向前查找这个字符串的开始位置
+                    int stringStart = -1;
+                    for (int i = charPos; i >= 0; i--) {
+                        if (fixed.charAt(i) == '"' && (i == 0 || fixed.charAt(i - 1) != '\\')) {
+                            // 检查这是字符串的开始还是结束
+                            int colonBefore = fixed.lastIndexOf(":", i);
+                            if (colonBefore > 0 && colonBefore < i) {
+                                stringStart = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (stringStart > 0) {
+                        // 找到字段开始位置
+                        int fieldStart = fixed.lastIndexOf(",", stringStart);
+                        if (fieldStart < 0) {
+                            fieldStart = fixed.lastIndexOf("{", stringStart);
+                            if (fieldStart < 0) {
+                                fieldStart = fixed.lastIndexOf("[", stringStart);
+                            }
+                        }
+
+                        if (fieldStart >= 0) {
+                            fixed.delete(fieldStart + (fixed.charAt(fieldStart) == ',' ? 1 : 0), fixed.length());
+                            fixed = ensureJsonComplete(fixed);
+                            log.info("使用方法2修复，从位置 {} 移除，新长度: {}", fieldStart, fixed.length());
+                            return fixed.toString();
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 确保 JSON 结构完整（添加缺失的闭合括号）
+     */
+    private StringBuilder ensureJsonComplete(StringBuilder json) {
+        int openBraces = 0;
+        int openBrackets = 0;
+        boolean inString = false;
+        boolean escaped = false;
+
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (!inString) {
+                if (c == '{') {
+                    openBraces++;
+                } else if (c == '}') {
+                    openBraces--;
+                } else if (c == '[') {
+                    openBrackets++;
+                } else if (c == ']') {
+                    openBrackets--;
+                }
+            }
+        }
+
+        // 移除末尾的逗号
+        while (json.length() > 0 && (json.charAt(json.length() - 1) == ',' ||
+               Character.isWhitespace(json.charAt(json.length() - 1)))) {
+            json.deleteCharAt(json.length() - 1);
+        }
+
+        // 添加缺失的闭合括号
+        for (int i = 0; i < openBrackets; i++) {
+            json.append(']');
+        }
+        for (int i = 0; i < openBraces; i++) {
+            json.append('}');
+        }
+
+        return json;
+    }
+
+    /**
+     * 修复不完整的 JSON（如果响应被截断）
+     */
+    private String fixIncompleteJson(String jsonContent) {
+        if (jsonContent == null || jsonContent.isEmpty()) {
+            return jsonContent;
+        }
+
+        // 检查 JSON 是否完整（检查括号是否匹配）
+        int openBraces = 0;
+        int openBrackets = 0;
+        boolean inString = false;
+        boolean escaped = false;
+
+        for (int i = 0; i < jsonContent.length(); i++) {
+            char c = jsonContent.charAt(i);
+
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (!inString) {
+                if (c == '{') {
+                    openBraces++;
+                } else if (c == '}') {
+                    openBraces--;
+                } else if (c == '[') {
+                    openBrackets++;
+                } else if (c == ']') {
+                    openBrackets--;
+                }
+            }
+        }
+
+        // 如果 JSON 不完整，尝试修复
+        if (openBraces > 0 || openBrackets > 0 || inString) {
+            log.warn("检测到不完整的 JSON，尝试修复。未闭合的括号: {}({}), []({})，未闭合的字符串: {}",
+                    openBraces > 0 ? openBraces : 0,
+                    openBrackets > 0 ? openBrackets : 0,
+                    inString);
+
+            // 从后往前查找最后一个不完整的字符串或对象
+            StringBuilder fixed = new StringBuilder(jsonContent);
+
+            // 如果字符串未闭合，需要找到最后一个未闭合的字符串并修复
+            if (inString) {
+                // 从后往前查找最后一个 ":" 后面跟着未闭合的字符串
+                int lastColon = fixed.lastIndexOf(":");
+                if (lastColon > 0) {
+                    // 从 lastColon 之后查找字符串开始位置
+                    int stringStart = -1;
+                    for (int i = lastColon + 1; i < fixed.length(); i++) {
+                        char c = fixed.charAt(i);
+                        if (c == '"' && (i == 0 || fixed.charAt(i - 1) != '\\')) {
+                            stringStart = i;
+                            break;
+                        }
+                    }
+
+                    // 如果找到了未闭合的字符串开始位置，关闭它
+                    if (stringStart > 0) {
+                        log.warn("发现未闭合的字符串，从位置 {} 开始，关闭字符串", stringStart);
+                        // 在末尾添加闭合引号
+                        fixed.append("\"");
+                    } else {
+                        // 如果没有找到引号，说明字符串值没有引号，需要添加
+                        // 找到最后一个 ":" 的位置，在其后添加引号（如果还没有）
+                        if (lastColon > 0 && lastColon < fixed.length() - 1) {
+                            char afterColon = fixed.charAt(lastColon + 1);
+                            if (afterColon != '"' && afterColon != ' ') {
+                                // 在 ":" 后插入引号
+                                fixed.insert(lastColon + 1, "\"");
+                                // 在末尾添加闭合引号
+                                fixed.append("\"");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 查找最后一个未闭合的字符串（即使 inString 为 false，也可能有未闭合的字符串）
+            int lastColon = fixed.lastIndexOf(":");
+            if (lastColon > 0) {
+                // 检查从 lastColon 之后是否有未闭合的字符串
+                boolean foundUnclosedString = false;
+                int stringStart = -1;
+                boolean inStringCheck = false;
+                for (int i = lastColon + 1; i < fixed.length(); i++) {
+                    char c = fixed.charAt(i);
+                    if (c == '\\' && i < fixed.length() - 1) {
+                        i++; // 跳过转义字符
+                        continue;
+                    }
+                    if (c == '"') {
+                        if (!inStringCheck) {
+                            stringStart = i;
+                            inStringCheck = true;
+                        } else {
+                            // 找到了闭合引号
+                            stringStart = -1;
+                            inStringCheck = false;
+                        }
+                    }
+                }
+
+                // 如果找到了未闭合的字符串，关闭它
+                if (stringStart > 0 && inStringCheck) {
+                    log.warn("发现未闭合的字符串，从位置 {} 开始，关闭字符串", stringStart);
+                    fixed.append("\"");
+                }
+            }
+
+            // 移除最后一个不完整的字段（如果以逗号结尾）
+            while (fixed.length() > 0 && (fixed.charAt(fixed.length() - 1) == ',' ||
+                   Character.isWhitespace(fixed.charAt(fixed.length() - 1)))) {
+                fixed.deleteCharAt(fixed.length() - 1);
+            }
+
+            // 添加缺失的闭合括号
+            for (int i = 0; i < openBrackets; i++) {
+                fixed.append(']');
+            }
+            for (int i = 0; i < openBraces; i++) {
+                fixed.append('}');
+            }
+
+            log.info("修复后的 JSON 长度: {} 字符（原长度: {} 字符）", fixed.length(), jsonContent.length());
+            return fixed.toString();
+        }
+
+        return jsonContent;
     }
 
     /**
@@ -966,16 +1311,17 @@ public class AIService {
         // 使用更精确的正则表达式，避免替换字符串值内的单引号
         jsonContent = jsonContent.replaceAll("(\\s|^|[,:{\\[])'([^']*)'(\\s|$|[,}\\]])", "$1\"$2\"$3");
 
-        // 第三步：尝试解析，如果失败则记录错误
+        // 第三步：尝试解析验证，如果失败则记录警告但不抛出异常
+        // 注意：这里不抛出异常，让后续的修复逻辑可以继续执行
         try {
             objectMapper.readTree(jsonContent);
             return jsonContent;
         } catch (Exception e) {
-            log.error("JSON 清理后仍无法解析，错误位置: line {}, column {}",
+            log.warn("JSON 清理后仍无法解析，将在后续步骤中尝试修复。错误位置: line {}, column {}",
                     e.getMessage().contains("line") ? extractLineNumber(e.getMessage()) : "unknown",
                     e.getMessage().contains("column") ? extractColumnNumber(e.getMessage()) : "unknown");
-            log.debug("清理后的 JSON 内容: {}", jsonContent);
-            throw new RuntimeException("JSON 格式错误，无法解析: " + e.getMessage(), e);
+            // 不抛出异常，返回清理后的内容，让后续的修复逻辑处理
+            return jsonContent;
         }
     }
 
@@ -996,6 +1342,101 @@ public class AIService {
             trimmed = trimmed.substring(0, trimmed.lastIndexOf("```"));
         }
         return trimmed.trim();
+    }
+
+    /**
+     * 从描述中提取注意事项
+     * 查找包含"注意事项"、"注意"等关键词的内容
+     */
+    private String extractNotes(String description) {
+        if (description == null || description.isEmpty()) {
+            return null;
+        }
+
+        // 查找"注意事项"关键词
+        String[] noteKeywords = {"注意事项", "注意", "温馨提示", "特别提醒"};
+        for (String keyword : noteKeywords) {
+            int index = description.indexOf(keyword);
+            if (index >= 0) {
+                // 找到关键词，提取后面的内容
+                String afterKeyword = description.substring(index + keyword.length()).trim();
+
+                // 移除可能的冒号、句号等标点
+                if (afterKeyword.startsWith(":") || afterKeyword.startsWith("：")) {
+                    afterKeyword = afterKeyword.substring(1).trim();
+                }
+                if (afterKeyword.startsWith(".") || afterKeyword.startsWith("。")) {
+                    afterKeyword = afterKeyword.substring(1).trim();
+                }
+
+                // 提取到句号、换行或结尾
+                int endIndex = afterKeyword.length();
+                int periodIndex = afterKeyword.indexOf("。");
+                int newlineIndex = afterKeyword.indexOf("\n");
+                int periodIndex2 = afterKeyword.indexOf(".");
+
+                if (periodIndex > 0 && periodIndex < endIndex) {
+                    endIndex = periodIndex + 1;
+                }
+                if (newlineIndex > 0 && newlineIndex < endIndex) {
+                    endIndex = newlineIndex;
+                }
+                if (periodIndex2 > 0 && periodIndex2 < endIndex) {
+                    endIndex = periodIndex2 + 1;
+                }
+
+                String notes = afterKeyword.substring(0, endIndex).trim();
+                if (!notes.isEmpty()) {
+                    return notes;
+                }
+            }
+        }
+
+        // 如果没有找到明确的关键词，尝试查找包含"不要"、"禁止"等提示性词语的句子
+        String[] warningKeywords = {"不要", "禁止", "请勿", "避免", "需注意"};
+        for (String keyword : warningKeywords) {
+            int index = description.indexOf(keyword);
+            if (index >= 0) {
+                // 向前查找句子开始（句号、换行或开头）
+                int startIndex = 0;
+                int prevPeriod = description.lastIndexOf("。", index);
+                int prevNewline = description.lastIndexOf("\n", index);
+                int prevPeriod2 = description.lastIndexOf(".", index);
+
+                if (prevPeriod > startIndex) {
+                    startIndex = prevPeriod + 1;
+                }
+                if (prevNewline > startIndex) {
+                    startIndex = prevNewline + 1;
+                }
+                if (prevPeriod2 > startIndex) {
+                    startIndex = prevPeriod2 + 1;
+                }
+
+                // 向后查找句子结束
+                int endIndex = description.length();
+                int nextPeriod = description.indexOf("。", index);
+                int nextNewline = description.indexOf("\n", index);
+                int nextPeriod2 = description.indexOf(".", index);
+
+                if (nextPeriod > index && nextPeriod < endIndex) {
+                    endIndex = nextPeriod + 1;
+                }
+                if (nextNewline > index && nextNewline < endIndex) {
+                    endIndex = nextNewline;
+                }
+                if (nextPeriod2 > index && nextPeriod2 < endIndex) {
+                    endIndex = nextPeriod2 + 1;
+                }
+
+                String notes = description.substring(startIndex, endIndex).trim();
+                if (!notes.isEmpty() && notes.length() < 200) { // 限制长度，避免提取过多内容
+                    return notes;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -60,8 +60,8 @@
           </el-table-column>
           <el-table-column label="来源" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.resource.source === 'CULTURE_RESOURCE' ? 'success' : 'info'">
-                {{ row.resource.source === 'CULTURE_RESOURCE' ? '文化资源' : '社区投稿' }}
+              <el-tag :type="getSourceTagType(row.resource.source)">
+                {{ getSourceLabel(row.resource.source) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -126,6 +126,7 @@
           <el-radio-group v-model="form.source" @change="handleSourceChange">
             <el-radio value="CULTURE_RESOURCE">文化资源</el-radio>
             <el-radio value="COMMUNITY_POST">社区投稿</el-radio>
+            <el-radio value="HERITAGE_ITEM">文化遗产</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="选择资源" required>
@@ -165,6 +166,7 @@ import {
   getCurrentDisplayedResources,
   getAdminCultureResources,
   getAdminPosts,
+  getAdminHeritageItems,
   type HomeResourceWithConfigInfo,
 } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -180,10 +182,25 @@ const resourceOptions = ref<Array<{ id: number; title: string }>>([])
 
 const form = ref({
   type: 'FEATURED' as 'FEATURED' | 'HOT',
-  source: 'CULTURE_RESOURCE' as 'CULTURE_RESOURCE' | 'COMMUNITY_POST',
+  source: 'CULTURE_RESOURCE' as 'CULTURE_RESOURCE' | 'COMMUNITY_POST' | 'HERITAGE_ITEM',
   resourceId: undefined as number | undefined,
   displayOrder: 0,
 })
+
+const sourceLabelMap: Record<string, string> = {
+  CULTURE_RESOURCE: '文化资源',
+  COMMUNITY_POST: '社区投稿',
+  HERITAGE_ITEM: '文化遗产',
+}
+
+const sourceTagTypeMap: Record<string, 'success' | 'info' | 'warning'> = {
+  CULTURE_RESOURCE: 'success',
+  COMMUNITY_POST: 'info',
+  HERITAGE_ITEM: 'warning',
+}
+
+const getSourceLabel = (source: string) => sourceLabelMap[source] || '其他'
+const getSourceTagType = (source: string) => sourceTagTypeMap[source] || 'info'
 
 const handleTabChange = () => {
   form.value.type = activeTab.value
@@ -224,7 +241,7 @@ const handleSourceChange = async () => {
       })
       resourceOptions.value =
         response.list?.map((r) => ({ id: r.id, title: r.title })) || []
-    } else {
+    } else if (form.value.source === 'COMMUNITY_POST') {
       const response = await getAdminPosts({
         page: 1,
         size: 100, // 加载更多资源供选择
@@ -232,6 +249,15 @@ const handleSourceChange = async () => {
       })
       resourceOptions.value =
         response.list?.map((r) => ({ id: r.id, title: r.title })) || []
+    } else if (form.value.source === 'HERITAGE_ITEM') {
+      const response = await getAdminHeritageItems({
+        page: 1,
+        size: 100,
+      })
+      resourceOptions.value =
+        response.list?.map((r) => ({ id: r.id, title: r.title })) || []
+    } else {
+      resourceOptions.value = []
     }
   } catch (error) {
     console.error('Failed to load resources:', error)
