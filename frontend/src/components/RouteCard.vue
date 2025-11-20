@@ -8,6 +8,24 @@
     >
       <div class="route-card__wrapper">
         <div class="route-card__hero">
+          <button
+            class="route-card__drag-handle"
+            type="button"
+            title="按住拖动卡片"
+            @mousedown.prevent="startDrag"
+            @touchstart.prevent="startDrag"
+          >
+            ⠿
+          </button>
+          <button
+            v-if="isManualPosition"
+            class="route-card__reset"
+            type="button"
+            title="回到自动位置"
+            @click="resetPosition"
+          >
+            重置
+          </button>
           <div class="route-card__hero-info">
             <span class="route-card__chip">第 {{ point?.day || order }} 天</span>
             <p class="route-card__hero-title">{{ highlightTitle }}</p>
@@ -132,6 +150,9 @@ const props = defineProps({
 
 const cardRef = ref<HTMLElement>()
 const position = ref({ left: -9999, top: -9999 })
+const isManualPosition = ref(false)
+const isDragging = ref(false)
+const dragOffset = ref({ x: 0, y: 0 })
 const highlightTitle = computed(() => props.point?.dayTitle || '行程亮点')
 const formattedCoords = computed(() => {
   if (!props.point) return '--'
@@ -171,8 +192,20 @@ const containerSize = computed(() => {
     : { width: window.innerWidth, height: window.innerHeight }
 })
 
+const clampWithinViewport = (left: number, top: number) => {
+  const width = cardRef.value?.offsetWidth || 380
+  const height = cardRef.value?.offsetHeight || 320
+  const padding = 16
+  const maxLeft = containerSize.value.width - width - padding
+  const maxTop = containerSize.value.height - height - padding
+  return {
+    left: Math.min(Math.max(left, padding), Math.max(maxLeft, padding)),
+    top: Math.min(Math.max(top, padding), Math.max(maxTop, padding)),
+  }
+}
+
 const updatePosition = () => {
-  if (!props.map || !props.point) return
+  if (!props.map || !props.point || (isManualPosition.value && !isDragging.value)) return
   const { lng, lat } = props.point
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
   const pixel = props.map.lngLatToContainer(new window.AMap.LngLat(lng, lat))
@@ -181,11 +214,7 @@ const updatePosition = () => {
   const height = cardRef.value?.offsetHeight || 200
   const x = pixel.x - width / 2
   const y = pixel.y - height - 24
-  const maxLeft = containerSize.value.width - width - 24
-  const clampedX = Math.min(Math.max(x, 24), Math.max(maxLeft, 24))
-  const minTop = 24
-  const clampedY = Math.max(y, minTop)
-  position.value = { left: clampedX, top: clampedY }
+  position.value = clampWithinViewport(x, y)
 }
 
 const registerMapEvents = () => {
@@ -221,14 +250,69 @@ const markVisited = () => {
   ElMessage.success('已标记为已去过')
 }
 
-const truncateText = (text: string, length: number) => {
-  if (!text) return ''
-  return text.length > length ? `${text.slice(0, length)}...` : text
+const applyDragPosition = (clientX: number, clientY: number) => {
+  const nextLeft = clientX - dragOffset.value.x
+  const nextTop = clientY - dragOffset.value.y
+  position.value = clampWithinViewport(nextLeft, nextTop)
+}
+
+const handleDragMove = (event: MouseEvent | TouchEvent) => {
+  if (!isDragging.value) return
+  event.preventDefault()
+  const point = 'touches' in event ? event.touches[0] : event
+  applyDragPosition(point.clientX, point.clientY)
+}
+
+const stopDrag = () => {
+  if (!isDragging.value) return
+  isDragging.value = false
+  document.removeEventListener('mousemove', handleDragMove)
+  document.removeEventListener('mouseup', stopDrag)
+  document.removeEventListener('touchmove', handleDragMove)
+  document.removeEventListener('touchend', stopDrag)
+  document.removeEventListener('touchcancel', stopDrag)
+}
+
+const startDrag = (event: MouseEvent | TouchEvent) => {
+  if (!props.visible) return
+  if ('stopPropagation' in event) {
+    event.stopPropagation()
+  }
+  isManualPosition.value = true
+  isDragging.value = true
+  const point = 'touches' in event ? event.touches[0] : event
+  dragOffset.value = {
+    x: point.clientX - position.value.left,
+    y: point.clientY - position.value.top,
+  }
+  document.addEventListener('mousemove', handleDragMove)
+  document.addEventListener('mouseup', stopDrag)
+  document.addEventListener('touchmove', handleDragMove, { passive: false })
+  document.addEventListener('touchend', stopDrag)
+  document.addEventListener('touchcancel', stopDrag)
+}
+
+const resetPosition = () => {
+  isManualPosition.value = false
+  requestAnimationFrame(updatePosition)
 }
 
 watch(
-  () => [props.point, props.visible],
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      requestAnimationFrame(updatePosition)
+    } else {
+      isManualPosition.value = false
+    }
+  }
+)
+
+watch(
+  () => props.point,
   () => {
+    isManualPosition.value = false
+    detailExpanded.value = false
     if (props.visible) {
       requestAnimationFrame(updatePosition)
     }
@@ -249,15 +333,24 @@ watch(
   }
 )
 
+const handleResize = () => {
+  if (isManualPosition.value) {
+    position.value = clampWithinViewport(position.value.left, position.value.top)
+  } else {
+    updatePosition()
+  }
+}
+
 onMounted(() => {
   registerMapEvents()
   requestAnimationFrame(updatePosition)
-  window.addEventListener('resize', updatePosition)
+  window.addEventListener('resize', handleResize)
 })
 
 onBeforeUnmount(() => {
   unregisterMapEvents()
-  window.removeEventListener('resize', updatePosition)
+  stopDrag()
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -286,6 +379,38 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+}
+
+.route-card__drag-handle,
+.route-card__reset {
+  position: absolute;
+  top: 12px;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  transition: background 0.2s ease;
+}
+
+.route-card__drag-handle {
+  right: 16px;
+}
+
+.route-card__reset {
+  right: 68px;
+  cursor: pointer;
+}
+
+.route-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+.route-card__drag-handle:hover,
+.route-card__reset:hover {
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .route-card__hero-info {

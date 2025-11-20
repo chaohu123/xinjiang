@@ -25,5 +25,6 @@ public class RouteResponse {
     private Integer views;
     private Integer favorites;
     private LocalDateTime createdAt;
+    private Double estimatedBudget;
 }
 

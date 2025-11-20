@@ -249,12 +249,12 @@
           <el-divider content-position="left">额外服务</el-divider>
           <el-form-item label="需要服务">
             <el-checkbox-group v-model="generateForm.extraServices">
-              <el-checkbox label="餐厅预订建议">餐厅预订建议</el-checkbox>
-              <el-checkbox label="门票预订建议">门票预订建议</el-checkbox>
-              <el-checkbox label="交通预订建议">交通预订建议</el-checkbox>
-              <el-checkbox label="打包清单">打包清单</el-checkbox>
-              <el-checkbox label="安全提示">安全提示</el-checkbox>
-              <el-checkbox label="签证/入境提醒">签证/入境提醒</el-checkbox>
+              <el-checkbox value="餐厅预订建议">餐厅预订建议</el-checkbox>
+              <el-checkbox value="门票预订建议">门票预订建议</el-checkbox>
+              <el-checkbox value="交通预订建议">交通预订建议</el-checkbox>
+              <el-checkbox value="打包清单">打包清单</el-checkbox>
+              <el-checkbox value="安全提示">安全提示</el-checkbox>
+              <el-checkbox value="签证/入境提醒">签证/入境提醒</el-checkbox>
             </el-checkbox-group>
           </el-form-item>
         </el-form>
