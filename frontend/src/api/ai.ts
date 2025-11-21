@@ -15,3 +15,9 @@ export const explainCulture = (payload: AiExplainPayload) => {
 
 
 
+
+
+
+
+
+

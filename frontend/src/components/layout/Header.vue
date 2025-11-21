@@ -13,7 +13,7 @@
         v-if="isMobile"
         class="mobile-menu-btn"
         text
-        @click="mobileMenuVisible = !mobileMenuVisible"
+        @click="toggleMobileMenu"
       >
         <el-icon :size="24"><Menu /></el-icon>
       </el-button>
@@ -25,7 +25,7 @@
           :to="item.path"
           class="nav-item"
           active-class="active"
-          @click="isMobile && (mobileMenuVisible = false)"
+          @click="closeMobileMenu"
         >
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
@@ -34,6 +34,7 @@
 
       <div class="header-actions">
         <el-input
+          v-if="!isMobile"
           v-model="searchKeyword"
           :placeholder="$t('common.search')"
           class="search-input"
@@ -43,6 +44,15 @@
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
+        <el-button
+          v-else
+          class="search-icon-btn"
+          text
+          :aria-label="$t('common.search')"
+          @click="goToSearchPage"
+        >
+          <el-icon><Search /></el-icon>
+        </el-button>
 
         <el-dropdown @command="handleCommand">
           <el-button link class="lang-btn">
@@ -98,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/store/user'
@@ -139,14 +149,22 @@ const handleResize = () => {
   }
 }
 
-const menuItems = computed(() => [
-  { path: '/home', label: t('nav.home'), icon: 'HomeFilled' },
-  { path: '/map', label: t('nav.map'), icon: 'MapLocation' },
-  { path: '/heritage', label: '非遗专题', icon: 'CollectionTag' },
-  { path: '/routes', label: t('nav.routes'), icon: 'Guide' },
-  { path: '/events', label: t('nav.events'), icon: 'Calendar' },
-  { path: '/community', label: t('nav.community'), icon: 'ChatLineRound' },
-])
+const baseMenuItems = [
+  { path: '/home', labelKey: 'nav.home', icon: 'HomeFilled' },
+  { path: '/map', labelKey: 'nav.map', icon: 'MapLocation' },
+  { path: '/heritage', labelKey: '', fallbackLabel: '非遗专题', icon: 'CollectionTag' },
+  { path: '/routes', labelKey: 'nav.routes', icon: 'Guide' },
+  { path: '/events', labelKey: 'nav.events', icon: 'Calendar' },
+  { path: '/community', labelKey: 'nav.community', icon: 'ChatLineRound' },
+] as const
+
+const menuItems = computed(() =>
+  baseMenuItems.map(item => ({
+    path: item.path,
+    icon: item.icon,
+    label: item.labelKey ? t(item.labelKey) : item.fallbackLabel,
+  })),
+)
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50
@@ -158,9 +176,15 @@ const handleSearch = () => {
   }
 }
 
+const goToSearchPage = () => {
+  router.push({ name: 'Search' })
+}
+
 const handleCommand = (command: string) => {
-  locale.value = command
-  localStorage.setItem('locale', command)
+  if (command !== locale.value) {
+    locale.value = command
+    localStorage.setItem('locale', command)
+  }
 }
 
 const handleUserCommand = (command: string) => {
@@ -174,13 +198,25 @@ const handleUserCommand = (command: string) => {
   }
 }
 
+const toggleMobileMenu = () => {
+  if (isMobile.value) {
+    mobileMenuVisible.value = !mobileMenuVisible.value
+  }
+}
+
+const closeMobileMenu = () => {
+  if (isMobile.value) {
+    mobileMenuVisible.value = false
+  }
+}
+
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   window.addEventListener('resize', handleResize)
   handleResize()
 })
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('resize', handleResize)
 })
@@ -193,17 +229,25 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
-  border-bottom: 2px solid transparent;
-  background-image: linear-gradient(white, white),
-    linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  transition: all 0.3s;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
+    opacity: 0.85;
+    pointer-events: none;
+  }
 
   &.scrolled {
-    box-shadow: 0 4px 20px rgba(0, 115, 230, 0.15);
+    box-shadow: 0 6px 24px rgba(0, 115, 230, 0.15);
     background: rgba(255, 255, 255, 0.98);
   }
 }
@@ -295,23 +339,20 @@ onUnmounted(() => {
     left: 0;
     right: 0;
     background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px);
     flex-direction: column;
-    padding: 20px;
+    padding: 16px 20px;
     gap: 8px;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    border-bottom: 2px solid transparent;
-    background-image: linear-gradient(white, white),
-      linear-gradient(135deg, #0073e6 0%, #e6b000 50%, #e60000 100%);
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
+    transform: translateY(-12px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
 
     &.mobile-menu-open {
-      max-height: 400px;
-      padding: 20px;
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .nav-item {
@@ -337,6 +378,22 @@ onUnmounted(() => {
 
 .search-input {
   width: 200px;
+}
+
+.search-icon-btn {
+  color: #606266;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
 }
 
 .lang-btn {

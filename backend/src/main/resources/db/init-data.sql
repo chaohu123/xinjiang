@@ -137,7 +137,29 @@ INSERT INTO event_requirements (event_id, requirement) VALUES
 ON DUPLICATE KEY UPDATE event_id = event_id;
 
 -- =====================================================
--- 4. 插入路线数据
+-- 4. 调整路线相关表结构以支持长文本
+-- =====================================================
+ALTER TABLE route_tips
+    DROP PRIMARY KEY;
+ALTER TABLE route_tips
+    MODIFY COLUMN tip TEXT NOT NULL;
+ALTER TABLE route_tips
+    ADD PRIMARY KEY (route_id, tip(255));
+
+ALTER TABLE itinerary_items
+    MODIFY COLUMN accommodation TEXT NULL;
+
+ALTER TABLE itinerary_meals
+    DROP PRIMARY KEY;
+ALTER TABLE itinerary_meals
+    MODIFY COLUMN meal TEXT NOT NULL;
+ALTER TABLE itinerary_meals
+    ADD PRIMARY KEY (itinerary_item_id, meal(255));
+ALTER TABLE itinerary_locations
+    MODIFY COLUMN description TEXT NULL;
+
+-- =====================================================
+-- 5. 插入路线数据
 -- =====================================================
 -- 注意：先删除现有路线数据，确保使用新的主题分类
 SET FOREIGN_KEY_CHECKS = 0;
@@ -243,7 +265,7 @@ INSERT INTO itinerary_meals (itinerary_item_id, meal) VALUES
 ON DUPLICATE KEY UPDATE itinerary_item_id = itinerary_item_id;
 
 -- =====================================================
--- 5. 插入社区帖子数据
+-- 6. 插入社区帖子数据
 -- =====================================================
 INSERT INTO community_posts (title, content, author_id, likes, comments, views) VALUES
 ('天山天池美景分享', '今天去了天山天池，风景真的太美了！湖水清澈见底，山峦叠翠，简直是人间仙境。强烈推荐大家去游玩！', 2, 45, 12, 234),
@@ -276,7 +298,7 @@ INSERT INTO post_tags (post_id, tag) VALUES
 ON DUPLICATE KEY UPDATE post_id = post_id;
 
 -- =====================================================
--- 6. 插入评论数据
+-- 7. 插入评论数据
 -- =====================================================
 INSERT INTO comments (content, author_id, post_id, parent_id) VALUES
 ('真的很美！我也想去看看。', 3, 1, NULL),
@@ -288,7 +310,7 @@ INSERT INTO comments (content, author_id, post_id, parent_id) VALUES
 ON DUPLICATE KEY UPDATE id = id;
 
 -- =====================================================
--- 7. 插入收藏数据
+-- 8. 插入收藏数据
 -- =====================================================
 INSERT INTO favorites (user_id, resource_type, resource_id) VALUES
 (2, 'CULTURE', 1),
@@ -300,7 +322,7 @@ INSERT INTO favorites (user_id, resource_type, resource_id) VALUES
 ON DUPLICATE KEY UPDATE id = id;
 
 -- =====================================================
--- 8. 插入帖子点赞数据
+-- 9. 插入帖子点赞数据
 -- =====================================================
 INSERT INTO post_likes (user_id, post_id) VALUES
 (2, 2),
@@ -311,7 +333,7 @@ INSERT INTO post_likes (user_id, post_id) VALUES
 ON DUPLICATE KEY UPDATE id = id;
 
 -- =====================================================
--- 9. 插入活动报名数据
+-- 10. 插入活动报名数据
 -- =====================================================
 INSERT INTO event_registrations (user_id, event_id, status) VALUES
 (2, 1, 'APPROVED'),

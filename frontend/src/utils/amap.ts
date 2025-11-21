@@ -6,7 +6,7 @@ export function loadAMapScript(): Promise<void> {
     // 检查是否已经加载，并验证所有必要的API
     if (window.AMap && window.AMap.Map && window.AMap.InfoWindow && window.AMap.Marker) {
       // 额外验证关键API是否可用
-      const requiredAPIs = ['Map', 'InfoWindow', 'Marker', 'Polyline', 'MarkerClusterer']
+      const requiredAPIs = ['Map', 'InfoWindow', 'Marker', 'Polyline', 'MarkerClusterer', 'HeatMap']
       const allLoaded = requiredAPIs.every(api => {
         const apiPath = api.split('.')
         let current: any = window.AMap
@@ -34,7 +34,7 @@ export function loadAMapScript(): Promise<void> {
     const script = document.createElement('script')
     script.type = 'text/javascript'
     script.async = true
-    const pluginParam = 'AMap.MarkerClusterer'
+    const pluginParam = 'AMap.MarkerClusterer,AMap.HeatMap'
     script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&plugin=${pluginParam}&callback=initAMap`
 
     // 设置超时
@@ -48,7 +48,7 @@ export function loadAMapScript(): Promise<void> {
       clearTimeout(timeout)
 
       // 验证所有必要的API是否加载
-      const requiredAPIs = ['Map', 'InfoWindow', 'Marker', 'Polyline']
+      const requiredAPIs = ['Map', 'InfoWindow', 'Marker', 'Polyline', 'HeatMap']
       const missingAPIs: string[] = []
 
       requiredAPIs.forEach(api => {
@@ -89,7 +89,7 @@ export function loadAMapScript(): Promise<void> {
 export function isAMapReady(): boolean {
   if (!window.AMap) return false
 
-  const requiredAPIs = ['Map', 'InfoWindow', 'Marker', 'Polyline', 'MarkerClusterer']
+  const requiredAPIs = ['Map', 'InfoWindow', 'Marker', 'Polyline', 'MarkerClusterer', 'HeatMap']
   return requiredAPIs.every(api => {
     const apiPath = api.split('.')
     let current: any = window.AMap

@@ -14,8 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -23,6 +27,7 @@ public class AIService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private static final int MAX_GENERATION_ATTEMPTS = 3;
 
     @Value("${ai.provider:deepseek}")
     private String provider; // 可选: openai 或 deepseek
@@ -47,7 +52,7 @@ public class AIService {
     @Value("${ai.openai.model:gpt-3.5-turbo}")
     private String openaiModel;
 
-    @Value("${ai.deepseek.timeout:60000}")
+    @Value("${ai.deepseek.timeout:300000}")
     private long timeout;
 
     public String getProvider() {
@@ -86,16 +91,21 @@ public class AIService {
             log.info("使用 OpenAI API 生成路线");
         }
 
-        try {
-
             // 检查API密钥是否配置
             if (isApiKeyMissing(apiKey)) {
                 log.warn("AI API密钥未配置（Provider: {}），使用默认路线生成逻辑", provider);
                 return generateDefaultRoute(request);
             }
 
+        String retryHint = null;
+        for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+            try {
+
             // 构建提示词
             String prompt = buildPrompt(request);
+            if (retryHint != null) {
+                prompt = prompt + "\n\n【系统提醒】" + retryHint + "。请重新生成符合 schema 的 JSON，务必在返回前自检语法。";
+            }
 
             // 构建请求体（DeepSeek 和 OpenAI 使用相同的格式）
             OpenAIRequest aiRequest = new OpenAIRequest();
@@ -151,8 +161,17 @@ public class AIService {
 
             String content = response.getChoices().get(0).getMessage().getContent();
 
-            // 解析AI返回的JSON
-            AIRouteResponse aiRouteResponse = parseAIResponse(content, request);
+            AIRouteResponse aiRouteResponse;
+            try {
+                // 解析AI返回的JSON
+                aiRouteResponse = parseAIResponse(content, request);
+            } catch (RuntimeException parseException) {
+                log.error("AI响应解析失败，将降级为默认路线: {}", parseException.getMessage(), parseException);
+                aiRouteResponse = buildFallbackRoute(request, parseException.getMessage());
+            }
+
+            // 验证行程完整性（确保天数与用户请求一致）
+            validateItineraryCompleteness(aiRouteResponse, request);
 
             // 只输出是否成功接收数据
             System.out.println("接收数据成功");
@@ -160,6 +179,44 @@ public class AIService {
 
             return aiRouteResponse;
 
+            } catch (JsonFormatException jsonError) {
+                retryHint = "上一次响应的 JSON 语法错误: " + jsonError.getMessage();
+                log.warn("AI响应 JSON 语法错误（尝试 {}/{}）：{}", attempt, MAX_GENERATION_ATTEMPTS, jsonError.getMessage());
+                if (attempt == MAX_GENERATION_ATTEMPTS) {
+                    log.warn("多次尝试仍无法解析 JSON，使用兜底路线");
+                    return buildFallbackRoute(request, jsonError.getMessage());
+                }
+                safeRetryPause();
+            } catch (IncompleteItineraryException incomplete) {
+                retryHint = incomplete.getMessage();
+                log.warn("AI响应天数不完整（尝试 {}/{}）：{}", attempt, MAX_GENERATION_ATTEMPTS, incomplete.getMessage());
+
+                // 如果天数不完整且请求天数较多（>5天），尝试分段生成
+                // 在第一次检测到不完整时就开始分段生成，避免浪费时间重试
+                if (request.getDuration() > 5 && attempt == 1) {
+                    log.info("检测到长行程请求（{}天），立即尝试分段生成", request.getDuration());
+                    try {
+                        AIRouteResponse segmentedResponse = generateRouteSegmented(request, apiKey, apiUrl, model);
+                        if (segmentedResponse != null) {
+                            // 验证分段生成的结果是否完整
+                            try {
+                                validateItineraryCompleteness(segmentedResponse, request);
+                                log.info("分段生成成功，返回完整行程（{}天）", segmentedResponse.getItinerary() != null ? segmentedResponse.getItinerary().size() : 0);
+                                return segmentedResponse;
+                            } catch (IncompleteItineraryException validationException) {
+                                log.warn("分段生成的结果仍不完整: {}", validationException.getMessage());
+                            }
+                        }
+                    } catch (Exception segException) {
+                        log.warn("分段生成失败: {}", segException.getMessage(), segException);
+                    }
+                }
+
+                if (attempt == MAX_GENERATION_ATTEMPTS) {
+                    log.warn("多次尝试仍未获得完整行程，使用兜底路线");
+                    return buildFallbackRoute(request, incomplete.getMessage());
+                }
+                safeRetryPause();
         } catch (RuntimeException e) {
             // 如果是我们主动抛出的异常，直接抛出，不要使用默认数据
             System.out.println("失败");
@@ -169,6 +226,202 @@ public class AIService {
             log.error("调用AI服务时发生未预期的错误，Provider: {}, URL: {}", provider, apiUrl, e);
             throw new RuntimeException("AI服务调用失败: " + e.getMessage(), e);
         }
+        }
+
+        // 理论上不会触发，添加兜底返回
+        return buildFallbackRoute(request, "AI响应未包含完整行程");
+    }
+
+    /**
+     * 分段生成路线（用于长行程，将总天数拆分成多个批次生成）
+     */
+    private AIRouteResponse generateRouteSegmented(GenerateRouteRequest request, String apiKey, String apiUrl, String model) {
+        int totalDays = request.getDuration();
+        int batchSize = 4; // 每批生成4天，确保不超过AI限制
+        int batchCount = (totalDays + batchSize - 1) / batchSize; // 向上取整
+
+        log.info("开始分段生成路线：总天数={}，分{}批，每批约{}天", totalDays, batchCount, batchSize);
+
+        List<AIRouteResponse.ItineraryItem> allItineraryItems = new ArrayList<>();
+        String title = null;
+        String description = null;
+        List<String> tips = new ArrayList<>();
+
+        for (int batch = 0; batch < batchCount; batch++) {
+            int startDay = batch * batchSize + 1;
+            int endDay = Math.min((batch + 1) * batchSize, totalDays);
+            int currentBatchDays = endDay - startDay + 1;
+
+            log.info("生成第{}批行程：第{}天到第{}天（共{}天）", batch + 1, startDay, endDay, currentBatchDays);
+
+            try {
+                // 创建批次请求
+                GenerateRouteRequest batchRequest = createBatchRequest(request, startDay, endDay, currentBatchDays);
+
+                // 构建提示词（指定天数范围）
+                String prompt = buildPromptForBatch(batchRequest, startDay, endDay, batch, batchCount);
+
+                // 调用AI API
+                OpenAIRequest aiRequest = new OpenAIRequest();
+                aiRequest.setModel(model);
+                List<OpenAIRequest.Message> messages = new ArrayList<>();
+                OpenAIRequest.Message message = new OpenAIRequest.Message();
+                message.setRole("user");
+                message.setContent(prompt);
+                messages.add(message);
+                aiRequest.setMessages(messages);
+                aiRequest.setTemperature(0.7);
+                aiRequest.setMaxTokens(16000);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setBearerAuth(apiKey);
+
+                HttpEntity<OpenAIRequest> requestEntity = new HttpEntity<>(aiRequest, headers);
+
+                ResponseEntity<OpenAIResponse> responseEntity = restTemplate.exchange(
+                        apiUrl,
+                        HttpMethod.POST,
+                        requestEntity,
+                        OpenAIResponse.class
+                );
+
+                OpenAIResponse response = responseEntity.getBody();
+                if (response == null || response.getChoices() == null || response.getChoices().isEmpty()) {
+                    log.error("第{}批API返回空响应", batch + 1);
+                    return null;
+                }
+
+                String content = response.getChoices().get(0).getMessage().getContent();
+
+                // 解析响应
+                AIRouteResponse batchResponse = parseAIResponse(content, batchRequest);
+
+                // 提取并合并数据
+                if (batch == 0) {
+                    // 第一批：提取标题和描述
+                    title = batchResponse.getTitle();
+                    description = batchResponse.getDescription();
+                    if (batchResponse.getTips() != null) {
+                        tips.addAll(batchResponse.getTips());
+                    }
+                } else {
+                    // 后续批次：合并提示
+                    if (batchResponse.getTips() != null) {
+                        tips.addAll(batchResponse.getTips());
+                    }
+                }
+
+                // 合并行程项，确保天数连续
+                if (batchResponse.getItinerary() != null) {
+                    // 按 day 字段排序，确保顺序正确
+                    List<AIRouteResponse.ItineraryItem> sortedItems = new ArrayList<>(batchResponse.getItinerary());
+                    sortedItems.sort((a, b) -> Integer.compare(a.getDay(), b.getDay()));
+
+                    int itemIndex = 0;
+                    for (AIRouteResponse.ItineraryItem item : sortedItems) {
+                        // 确保天数正确（从startDay开始，连续递增）
+                        int adjustedDay = startDay + itemIndex;
+                        item.setDay(adjustedDay);
+                        allItineraryItems.add(item);
+                        itemIndex++;
+                    }
+
+                    // 验证批次天数是否正确
+                    if (itemIndex != currentBatchDays) {
+                        log.warn("第{}批返回的天数不匹配：期望{}天，实际{}天", batch + 1, currentBatchDays, itemIndex);
+                    }
+                }
+
+                // 批次间暂停，避免API限流
+                if (batch < batchCount - 1) {
+                    safeRetryPause();
+                }
+
+            } catch (Exception e) {
+                log.error("第{}批生成失败: {}", batch + 1, e.getMessage(), e);
+                return null;
+            }
+        }
+
+        // 验证合并后的行程天数
+        if (allItineraryItems.size() < totalDays) {
+            log.warn("分段生成后仍缺少天数：期望{}天，实际{}天", totalDays, allItineraryItems.size());
+            return null;
+        }
+
+        // 构建完整响应
+        AIRouteResponse fullResponse = new AIRouteResponse();
+        fullResponse.setTitle(title != null ? title : "从" + request.getStartLocation() + "到" + request.getEndLocation() + "的路线");
+        fullResponse.setDescription(description != null ? description : "根据您的要求生成的个性化路线，包含" + totalDays + "天的行程安排。");
+        fullResponse.setItinerary(allItineraryItems);
+        fullResponse.setTips(tips);
+
+        log.info("分段生成完成：共{}天行程，{}个行程项", totalDays, allItineraryItems.size());
+        return fullResponse;
+    }
+
+    /**
+     * 创建批次请求（用于分段生成）
+     */
+    private GenerateRouteRequest createBatchRequest(GenerateRouteRequest original, int startDay, int endDay, int batchDays) {
+        GenerateRouteRequest batchRequest = new GenerateRouteRequest();
+        // 复制原始请求的所有字段
+        batchRequest.setDestinations(original.getDestinations());
+        batchRequest.setStartLocation(original.getStartLocation());
+        batchRequest.setEndLocation(original.getEndLocation());
+        batchRequest.setTravelDates(original.getTravelDates());
+        batchRequest.setDuration(batchDays); // 使用批次天数
+        batchRequest.setArrivalTime(original.getArrivalTime());
+        batchRequest.setDepartureTime(original.getDepartureTime());
+        batchRequest.setPeopleCount(original.getPeopleCount());
+        batchRequest.setAgeGroups(original.getAgeGroups());
+        batchRequest.setHasMobilityIssues(original.getHasMobilityIssues());
+        batchRequest.setSpecialDietary(original.getSpecialDietary());
+        batchRequest.setStylePreferences(original.getStylePreferences());
+        batchRequest.setInterests(original.getInterests());
+        batchRequest.setTotalBudget(original.getTotalBudget());
+        batchRequest.setDailyBudget(original.getDailyBudget());
+        batchRequest.setBudget(original.getBudget());
+        batchRequest.setIncludesFlight(original.getIncludesFlight());
+        batchRequest.setAccommodationPreferences(original.getAccommodationPreferences());
+        batchRequest.setTransportationPreferences(original.getTransportationPreferences());
+        batchRequest.setMustVisit(original.getMustVisit());
+        batchRequest.setMustAvoid(original.getMustAvoid());
+        batchRequest.setMustVisitLocations(original.getMustVisitLocations());
+        batchRequest.setWeatherSensitivity(original.getWeatherSensitivity());
+        batchRequest.setNeedRestaurantSuggestions(original.getNeedRestaurantSuggestions());
+        batchRequest.setNeedTicketSuggestions(original.getNeedTicketSuggestions());
+        batchRequest.setNeedTransportSuggestions(original.getNeedTransportSuggestions());
+        batchRequest.setNeedPackingList(original.getNeedPackingList());
+        batchRequest.setNeedSafetyTips(original.getNeedSafetyTips());
+        batchRequest.setNeedVisaInfo(original.getNeedVisaInfo());
+        batchRequest.setOutputFormats(original.getOutputFormats());
+        return batchRequest;
+    }
+
+    /**
+     * 构建批次提示词（指定天数范围）
+     */
+    private String buildPromptForBatch(GenerateRouteRequest request, int startDay, int endDay, int batchIndex, int totalBatches) {
+        String basePrompt = buildPrompt(request);
+
+        // 在提示词开头添加批次说明
+        StringBuilder batchPrompt = new StringBuilder();
+        batchPrompt.append("【重要说明】这是分段生成的第").append(batchIndex + 1).append("批（共").append(totalBatches).append("批）。\n");
+        batchPrompt.append("请仅生成第").append(startDay).append("天到第").append(endDay).append("天的行程安排。\n");
+        if (batchIndex == 0) {
+            batchPrompt.append("这是行程的开始部分，请包含路线标题、描述和总体信息。\n");
+        } else if (batchIndex == totalBatches - 1) {
+            batchPrompt.append("这是行程的结束部分，请确保行程自然结束于终点。\n");
+        } else {
+            batchPrompt.append("这是行程的中间部分，请确保与前后行程衔接自然。\n");
+        }
+        batchPrompt.append("itinerary 数组中必须包含且仅包含第").append(startDay).append("天到第").append(endDay).append("天的行程项，day 字段必须从").append(startDay).append("开始递增。\n\n");
+
+        batchPrompt.append(basePrompt);
+
+        return batchPrompt.toString();
     }
 
     /**
@@ -314,90 +567,22 @@ public class AIService {
         prompt.append("\n重要提示：路线标题和描述中必须明确包含起点和终点的城市名称，不能使用null或占位符。\n");
         prompt.append("例如：如果起点是乌鲁木齐，终点是喀什，标题应该是\"乌鲁木齐到喀什的丝路文化之旅\"，而不是\"从null到null的路线\"。\n\n");
 
-        prompt.append("你是专业旅行规划师。请为以下信息生成一个【详尽且可执行】的行程方案，要求详列每天活动、建议时间、交通方式、预估费用（分门别类）、推荐住宿区并给 3 个不同价位的酒店/民宿建议、以及每项活动的优先等级和替代方案。\n\n");
+        prompt.append("你是专业旅行规划师。请在保证落地性的前提下，生成一份结构清晰、信息准确的新疆行程方案，并重点覆盖以下要素：\n\n");
 
-        prompt.append("输出应包含：\n");
-        prompt.append("1) 每日行程表（时间轴）\n");
-        prompt.append("2) 每日预算汇总\n");
-        prompt.append("3) 必备行前准备与 packing list\n");
-        prompt.append("4) 预订建议（是否需要提前买票/预约）\n");
-        prompt.append("5) 可导入 Google Maps 的地标坐标或链接\n\n");
-
-        prompt.append("必须包含以下完整信息：\n");
-        prompt.append("1. 路线标题（简洁吸引人，突出特色，体现路线主题，必须包含起点和终点城市名称）\n");
-        prompt.append("   示例：\"乌鲁木齐到喀什的丝路文化之旅\"、\"探索新疆：从乌鲁木齐到伊犁的7日深度游\"\n");
-        prompt.append("2. 路线描述（300-500字，必须包含：路线亮点、适合人群、最佳旅游季节、路线特色、文化背景、预期体验）\n");
-        prompt.append("3. 每日行程安排（按天详细列出，每天必须包含以下完整信息）：\n");
-        prompt.append("   - 每日标题（突出当日主题和核心体验，如：\"第1天 - 探索乌鲁木齐，感受丝路起点\"）\n");
-        prompt.append("   - 每日详细描述（200-300字，必须包含：当日行程概述、主要活动、文化体验、亮点推荐、注意事项）\n");
-        prompt.append("   - 具体时间安排（必须详细到小时，例如：\n");
-        prompt.append("     * 08:00-09:00 酒店早餐，准备出发\n");
-        prompt.append("     * 09:00-10:30 前往XX景点（交通时间30分钟，游览时间1小时）\n");
-        prompt.append("     * 10:30-12:00 游览XX景点（详细说明游览内容和体验）\n");
-        prompt.append("     * 12:00-13:30 午餐时间（推荐餐厅和菜品）\n");
-        prompt.append("     * 13:30-17:00 继续游览其他景点\n");
-        prompt.append("     * 17:00-18:00 休息或自由活动\n");
-        prompt.append("     * 18:00-19:30 晚餐时间\n");
-        prompt.append("     * 19:30-21:00 夜游或文化体验活动\n");
-        prompt.append("     * 21:00 返回酒店休息）\n");
-        prompt.append("   - 景点信息（每个景点必须包含完整信息）：\n");
-        prompt.append("     * 景点名称（必须是新疆真实存在的景点）\n");
-        prompt.append("     * 详细描述（100-150字，包含：景点历史背景、文化意义、自然特色、游览亮点、拍照打卡点、最佳观赏角度）\n");
-        prompt.append("     * 开放时间（具体时间段，如：夏季08:00-20:00，冬季09:00-18:00）\n");
-        prompt.append("     * 门票价格（详细价格信息：成人票、学生票、儿童票、优惠政策）\n");
-        prompt.append("     * 最佳游览时间（具体时间段和季节，如：上午9-11点光线最佳，秋季色彩最美）\n");
-        prompt.append("     * 建议游览时长（如：深度游览3-4小时，快速游览1-2小时）\n");
-        prompt.append("     * 游览路线建议（推荐游览顺序和路线）\n");
-        prompt.append("     * 特色活动（如：骑马、拍照、体验民族风情等）\n");
-        prompt.append("     * 注意事项（如：需要携带物品、禁止事项等）\n");
-        prompt.append("     * 优先等级（必去/推荐/可选）\n");
-        prompt.append("     * 替代方案（如果该景点不可行，推荐的替代景点）\n");
-        prompt.append("     * 精确的经纬度坐标（lat和lng，必须是新疆境内的真实坐标）\n");
-        prompt.append("     * 注意事项（必须包含，如：尊重当地居民隐私、不要随意进入民居、需要携带物品、禁止事项等）\n");
-        prompt.append("   - 交通信息（必须详细说明）：\n");
-        prompt.append("     * 景点之间的交通方式（自驾/包车/公共交通/步行）\n");
-        prompt.append("     * 具体距离（公里数）\n");
-        prompt.append("     * 预计时间（包含堵车、休息等因素）\n");
-        prompt.append("     * 费用（如：包车500元/天，公共交通20元/人）\n");
-        prompt.append("     * 路况说明（如：山路较多、注意安全）\n");
-        prompt.append("     * 停车信息（如：景区停车场位置和费用）\n");
-        prompt.append("   - 餐饮安排（每餐必须详细说明）：\n");
-        prompt.append("     * 具体餐厅名称、地址或推荐餐厅类型（如：XX餐厅位于XX路，XX美食街）\n");
-        prompt.append("     * 推荐菜品（3-5道特色菜，说明菜品特色和口味）\n");
-        prompt.append("     * 人均消费范围（如：早餐30-50元/人，午餐80-120元/人，晚餐100-150元/人）\n");
-        prompt.append("     * 餐厅特色说明（如：当地老字号、民族特色、环境优雅、服务周到）\n");
-        prompt.append("     * 用餐时间建议（如：避开用餐高峰期）\n");
-        prompt.append("     * 特殊饮食需求（如：清真餐厅、素食选择）\n");
-        prompt.append("   - 住宿安排（必须详细说明，提供3个不同价位的选择）：\n");
-        prompt.append("     * 推荐住宿区域（如：市中心、景区附近、交通便利区）\n");
-        prompt.append("     * 经济型选择：酒店名称、地址、价格、特色、预订建议\n");
-        prompt.append("     * 舒适型选择：酒店名称、地址、价格、特色、预订建议\n");
-        prompt.append("     * 豪华型选择：酒店名称、地址、价格、特色、预订建议\n");
-        prompt.append("     * 酒店位置优势（如：距离XX景点X公里，步行X分钟，交通便利，周边设施齐全）\n");
-        prompt.append("   - 每日活动建议（除了景点游览外的活动）：\n");
-        prompt.append("     * 文化体验活动（如：观看民族歌舞、体验手工艺制作）\n");
-        prompt.append("     * 休闲活动（如：购物、SPA、夜游）\n");
-        prompt.append("     * 拍照打卡点（如：最佳拍照位置和时间）\n");
-        prompt.append("   - 每日预算分配（详细列出各项费用）：\n");
-        prompt.append("     * 交通费用（具体金额）\n");
-        prompt.append("     * 餐饮费用（早餐、午餐、晚餐分别列出）\n");
-        prompt.append("     * 住宿费用（具体金额）\n");
-        prompt.append("     * 门票费用（各景点门票合计）\n");
-        prompt.append("     * 其他费用（购物、娱乐等）\n");
-        prompt.append("     * 每日总预算\n");
-        prompt.append("4. 总体预算分配建议（按类别详细说明）：\n");
-        prompt.append("   - 交通费用（往返交通、当地交通、详细说明）\n");
-        prompt.append("   - 住宿费用（按天数计算，不同档次选择）\n");
-        prompt.append("   - 餐饮费用（按天数计算，不同档次选择）\n");
-        prompt.append("   - 门票费用（各景点门票合计）\n");
-        prompt.append("   - 其他费用（购物、娱乐、保险等）\n");
-        prompt.append("   - 总预算范围（最低预算和舒适预算）\n");
-        prompt.append("5. 必备行前准备与 Packing List（详细列出）：\n");
-        prompt.append("   - 证件类（身份证、边防证、学生证等）\n");
-        prompt.append("   - 衣物类（根据季节和天气，列出具体衣物清单）\n");
-        prompt.append("   - 用品类（防晒用品、药品、电子设备等）\n");
-        prompt.append("   - 其他必需品\n");
-        prompt.append("6. 预订建议（详细说明）：\n");
+        prompt.append("【输出结构】\n");
+        prompt.append("1. 路线标题：突出主题并包含起点/终点城市。\n");
+        prompt.append("2. 路线描述：300-400字，说明亮点、适合人群、最佳季节与预期体验。\n");
+        prompt.append("3. 行程安排：按天输出，每天包含：\n");
+        prompt.append("   - 当日标题 + 150-200字概述\n");
+        prompt.append("   - 时间轴（精确到小时）+ 交通方式与费用\n");
+        prompt.append("   - 主要景点列表：名称、100字说明、开放时间、门票、最佳时段、建议时长、优先级、替代方案、经纬度\n");
+        prompt.append("   - 餐饮：1-3 家/次推荐，含餐厅类型或名称、代表菜、人均消费、是否清真/素食\n");
+        prompt.append("   - 住宿：推荐区域 + 经济/舒适/高端各1个，含价格区间与预订建议\n");
+        prompt.append("   - 当日预算小结：交通/餐饮/住宿/门票/其他及总计\n");
+        prompt.append("4. 总体预算：汇总各成本类别与舒适/节省两档范围。\n");
+        prompt.append("5. Packing List：证件、衣物、用品、其他（各列举3-5项）。\n");
+        prompt.append("6. 预订建议：列出需提前预约/购买的景点、交通或餐饮。\n");
+        prompt.append("7. 全局提示 tips：气候、安全、文化礼仪等至少5条。\n\n");
         prompt.append("   - 需要提前预订的景点（门票、预约时间、预订渠道）\n");
         prompt.append("   - 需要提前预订的餐厅（热门餐厅、预订方式）\n");
         prompt.append("   - 需要提前预订的住宿（旺季建议、预订平台）\n");
@@ -487,6 +672,11 @@ public class AIService {
         prompt.append("7. 描述要详细、生动，突出新疆的地域特色和文化魅力\n");
         prompt.append("8. 所有信息要准确、实用，便于用户实际使用\n");
 
+        prompt.append("\n【严格格式要求】\n");
+        prompt.append("A. 仅输出合法 JSON，禁止使用 Markdown、额外文字或注释。\n");
+        prompt.append("B. 返回前请逐字段自检，保证所有引号、逗号、括号成对出现，没有 19:\"00 这类时间格式错误。\n");
+        prompt.append("C. 若无法满足要求，请直接重写结果，不要部分输出。\n");
+
         return prompt.toString();
     }
 
@@ -535,6 +725,7 @@ public class AIService {
 
             // 清理 JSON 内容：移除中文标点符号和其他可能导致解析错误的字符
             jsonContent = cleanJsonContent(jsonContent);
+            jsonContent = repairJsonStructure(jsonContent);
 
             log.debug("准备解析的JSON内容长度: {} 字符", jsonContent.length());
             if (jsonContent.length() > 10000) {
@@ -560,20 +751,35 @@ public class AIService {
                     log.info("尝试使用修复后的 JSON 重新解析");
                     // 重新清理和修复
                     fixedContent = cleanJsonContent(fixedContent);
+                    fixedContent = repairJsonStructure(fixedContent);
                     fixedContent = fixIncompleteJson(fixedContent);
+                    // 再次应用逗号和引号修复
+                    fixedContent = fixMissingCommasAndQuotes(fixedContent);
                     JsonNode rootNode = objectMapper.readTree(fixedContent);
                     log.info("JSON 修复成功，使用修复后的内容重新解析");
                     // 直接使用修复后的内容解析（跳过重复的清理步骤）
                     return parseAIResponseFromCleanedJson(fixedContent, request);
                 } catch (Exception retryException) {
                     log.error("修复后的 JSON 仍无法解析: {}", retryException.getMessage());
-                    throw new RuntimeException("AI返回的JSON格式不正确，且无法自动修复: " + e.getMessage() +
-                            "。可能是响应被截断，建议增加 maxTokens 设置或简化请求内容。", e);
+                    throw new JsonFormatException("AI返回的JSON格式不正确，且无法自动修复: " + e.getMessage(), e);
                 }
             }
 
-            throw new RuntimeException("AI返回的JSON格式不正确: " + e.getMessage() +
-                    "。可能是响应被截断，建议检查 maxTokens 设置或简化请求内容。", e);
+            // 如果 attemptJsonFix 没有修复，尝试直接应用逗号和引号修复
+            try {
+                log.info("尝试直接修复缺少逗号和引号的问题");
+                String directFixed = fixMissingCommasAndQuotes(jsonContent);
+                directFixed = cleanJsonContent(directFixed);
+                directFixed = repairJsonStructure(directFixed);
+                JsonNode rootNode = objectMapper.readTree(directFixed);
+                log.info("直接修复成功，使用修复后的内容重新解析");
+                return parseAIResponseFromCleanedJson(directFixed, request);
+            } catch (Exception directFixException) {
+                log.debug("直接修复也失败: {}", directFixException.getMessage());
+            }
+
+            throw new JsonFormatException("AI返回的JSON格式不正确: " + e.getMessage()
+                    + "。可能是响应被截断，建议检查提示词或减小输出体量。", e);
         } catch (Exception e) {
             log.error("解析AI响应时发生错误，原始内容: {}", content, e);
             throw new RuntimeException("解析AI响应失败: " + e.getMessage(), e);
@@ -1311,7 +1517,13 @@ public class AIService {
         // 使用更精确的正则表达式，避免替换字符串值内的单引号
         jsonContent = jsonContent.replaceAll("(\\s|^|[,:{\\[])'([^']*)'(\\s|$|[,}\\]])", "$1\"$2\"$3");
 
-        // 第三步：尝试解析验证，如果失败则记录警告但不抛出异常
+        // 第三步：修复常见的时间格式错误（如 19:"00）
+        jsonContent = fixCommonTimeTypos(jsonContent);
+
+        // 第四步：修复缺少逗号和未转义引号的问题
+        jsonContent = fixMissingCommasAndQuotes(jsonContent);
+
+        // 第五步：尝试解析验证，如果失败则记录警告但不抛出异常
         // 注意：这里不抛出异常，让后续的修复逻辑可以继续执行
         try {
             objectMapper.readTree(jsonContent);
@@ -1323,6 +1535,99 @@ public class AIService {
             // 不抛出异常，返回清理后的内容，让后续的修复逻辑处理
             return jsonContent;
         }
+    }
+
+    private String fixCommonTimeTypos(String jsonContent) {
+        if (!StringUtils.hasText(jsonContent)) {
+            return jsonContent;
+        }
+        String fixed = jsonContent.replaceAll("(\\d{1,2}):\"(\\d{2})", "$1:$2\"");
+        fixed = fixed.replaceAll("(\\d{1,2}):(\\d{2})-\\s*(\\d{1,2}):\"(\\d{2})", "$1:$2-$3:$4\"");
+        return fixed;
+    }
+
+    /**
+     * 修复缺少逗号和未转义引号的问题
+     * 处理常见的 JSON 格式错误：
+     * 1. 缺少逗号分隔符（如 "key1" "key2"）
+     * 2. 字符串中未转义的引号
+     */
+    private String fixMissingCommasAndQuotes(String jsonContent) {
+        if (!StringUtils.hasText(jsonContent)) {
+            return jsonContent;
+        }
+
+        StringBuilder fixed = new StringBuilder();
+        boolean inString = false;
+        boolean escaped = false;
+
+        for (int i = 0; i < jsonContent.length(); i++) {
+            char c = jsonContent.charAt(i);
+
+            if (escaped) {
+                fixed.append(c);
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                fixed.append(c);
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                if (inString) {
+                    // 检查是否是字符串结束
+                    // 跳过空白字符，查看下一个非空白字符
+                    int j = i + 1;
+                    while (j < jsonContent.length() && Character.isWhitespace(jsonContent.charAt(j))) {
+                        j++;
+                    }
+
+                    if (j >= jsonContent.length()) {
+                        // 字符串在末尾，结束字符串
+                        inString = false;
+                        fixed.append(c);
+                    } else {
+                        char nextChar = jsonContent.charAt(j);
+                        // 如果下一个字符是 : , } ] 或换行，则字符串结束
+                        if (nextChar == ':' || nextChar == ',' || nextChar == '}' ||
+                            nextChar == ']' || nextChar == '\n' || nextChar == '\r') {
+                            inString = false;
+                            fixed.append(c);
+                        } else {
+                            // 字符串中的引号，需要转义
+                            fixed.append("\\\"");
+                        }
+                    }
+                } else {
+                    // 字符串开始
+                    inString = true;
+                    fixed.append(c);
+                }
+                continue;
+            }
+
+            fixed.append(c);
+        }
+
+        String result = fixed.toString();
+
+        // 修复常见的缺少逗号的模式（仅在字符串外）
+        // 使用更精确的正则，避免在字符串内替换
+        // 模式1: "key" "value" -> "key", "value"
+        result = result.replaceAll("(\")\\s+(?=\")", "$1,");
+        // 模式2: "key" { -> "key", {
+        result = result.replaceAll("(\")\\s+(?=\\{)", "$1,");
+        // 模式3: "key" [ -> "key", [
+        result = result.replaceAll("(\")\\s+(?=\\[)", "$1,");
+        // 模式4: } "key" -> }, "key"
+        result = result.replaceAll("(\\})\\s+(?=\")", "$1,");
+        // 模式5: ] "key" -> ], "key"
+        result = result.replaceAll("(\\])\\s+(?=\")", "$1,");
+
+        return result;
     }
 
     /**
@@ -1342,6 +1647,90 @@ public class AIService {
             trimmed = trimmed.substring(0, trimmed.lastIndexOf("```"));
         }
         return trimmed.trim();
+    }
+
+    /**
+     * 修复常见的 JSON 结构错误（括号、方括号不匹配等）
+     */
+    private String repairJsonStructure(String jsonContent) {
+        if (!StringUtils.hasText(jsonContent)) {
+            return jsonContent;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        Deque<Character> stack = new ArrayDeque<>();
+        boolean inString = false;
+        boolean escaped = false;
+
+        for (int i = 0; i < jsonContent.length(); i++) {
+            char c = jsonContent.charAt(i);
+
+            if (escaped) {
+                builder.append(c);
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                builder.append(c);
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                builder.append(c);
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) {
+                builder.append(c);
+                continue;
+            }
+
+            if (c == '{') {
+                stack.push('}');
+                builder.append(c);
+                continue;
+            }
+            if (c == '[') {
+                stack.push(']');
+                builder.append(c);
+                continue;
+            }
+
+            if (c == '}' || c == ']') {
+                if (stack.isEmpty()) {
+                    // 忽略多余的闭合符号
+                    continue;
+                }
+                char expected = stack.peek();
+                if (c == expected) {
+                    stack.pop();
+                    builder.append(c);
+                } else {
+                    // 将错误的闭合符号替换为期望的符号，并重新处理当前字符
+                    builder.append(expected);
+                    stack.pop();
+                    i--;
+                }
+                continue;
+            }
+
+            builder.append(c);
+        }
+
+        // 如果字符串未闭合，自动补齐
+        if (inString) {
+            builder.append('"');
+            inString = false;
+        }
+
+        while (!stack.isEmpty()) {
+            builder.append(stack.pop());
+        }
+
+        return builder.toString();
     }
 
     /**
@@ -1525,6 +1914,30 @@ public class AIService {
     }
 
     /**
+     * 当 AI JSON 解析失败时构建兜底路线，并附加提示信息
+     */
+    private AIRouteResponse buildFallbackRoute(GenerateRouteRequest request, String reason) {
+        AIRouteResponse fallback = generateDefaultRoute(request);
+
+        String desc = fallback.getDescription();
+        if (!StringUtils.hasText(desc)) {
+            desc = "根据系统默认策略生成的新疆线路建议。";
+        }
+        fallback.setDescription(desc + "（AI响应格式异常，已提供系统兜底路线，建议稍后重试以获取完整方案。）");
+
+        List<String> tips = fallback.getTips() != null ? new ArrayList<>(fallback.getTips()) : new ArrayList<>();
+        String message = "AI生成内容解析失败，系统已提供通用路线方案";
+        if (StringUtils.hasText(reason)) {
+            message += "（" + reason + "）";
+        }
+        message += "。如需更精细的规划，请稍后再次尝试。";
+        tips.add(0, message);
+        fallback.setTips(tips);
+
+        return fallback;
+    }
+
+    /**
      * 生成默认路线（当AI服务不可用时）
      */
     private AIRouteResponse generateDefaultRoute(GenerateRouteRequest request) {
@@ -1665,6 +2078,52 @@ public class AIService {
         response.setTips(tips);
 
         return response;
+    }
+
+    /**
+     * 校验 AI 返回的行程天数是否满足用户请求
+     */
+    private void validateItineraryCompleteness(AIRouteResponse response, GenerateRouteRequest request) {
+        if (response == null) {
+            throw new IncompleteItineraryException("AI响应为空");
+        }
+        Integer expectedDuration = request.getDuration();
+        if (expectedDuration == null || expectedDuration <= 0) {
+            return;
+        }
+        List<AIRouteResponse.ItineraryItem> itinerary = response.getItinerary();
+        if (itinerary == null || itinerary.isEmpty()) {
+            throw new IncompleteItineraryException("AI响应未包含行程数据");
+        }
+
+        Set<Integer> distinctDays = new HashSet<>();
+        int maxDay = 0;
+        for (AIRouteResponse.ItineraryItem item : itinerary) {
+            if (item == null || item.getDay() == null) {
+                continue;
+            }
+            distinctDays.add(item.getDay());
+            if (item.getDay() > maxDay) {
+                maxDay = item.getDay();
+            }
+        }
+
+        if (distinctDays.isEmpty()) {
+            throw new IncompleteItineraryException("AI响应缺少有效的行程天数信息");
+        }
+
+        if (distinctDays.size() < expectedDuration || maxDay < expectedDuration) {
+            throw new IncompleteItineraryException(
+                    "请求了" + expectedDuration + "天行程，AI仅返回" + distinctDays.size() + "天（最大第" + maxDay + "天）");
+        }
+    }
+
+    private void safeRetryPause() {
+        try {
+            Thread.sleep(900L);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -1849,6 +2308,22 @@ public class AIService {
         String normalized = apiKey.trim();
         return "your-deepseek-api-key".equalsIgnoreCase(normalized)
                 || "your-openai-api-key".equalsIgnoreCase(normalized);
+    }
+
+    private static class IncompleteItineraryException extends RuntimeException {
+        public IncompleteItineraryException(String message) {
+            super(message);
+        }
+    }
+
+    private static class JsonFormatException extends RuntimeException {
+        public JsonFormatException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public JsonFormatException(String message) {
+            super(message);
+        }
     }
 
     // DTO类

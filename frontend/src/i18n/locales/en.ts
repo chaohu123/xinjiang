@@ -35,6 +35,24 @@ export default {
     hot: 'Hot Resources',
     latest: 'Latest Updates',
     explore: 'Start Exploring',
+    quickNav: {
+      map: {
+        title: 'Map Exploration',
+        description: 'Discover cultural landmarks',
+      },
+      routes: {
+        title: 'Route Recommendations',
+        description: 'Curated travel itineraries',
+      },
+      events: {
+        title: 'Event Calendar',
+        description: 'Exciting cultural events',
+      },
+      community: {
+        title: 'Community Hub',
+        description: 'Share your stories',
+      },
+    },
   },
   search: {
     title: 'Search Cultural Resources',

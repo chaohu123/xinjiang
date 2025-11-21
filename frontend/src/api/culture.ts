@@ -36,17 +36,19 @@ export const searchResources = (params: SearchParams) => {
 
 // 获取资源详情
 export const getResourceDetail = (type: CultureType, id: number) => {
-  return request.get<CultureResource>(`/culture/${type}/${id}`)
+  return request.get<CultureResource, CultureResource>(`/culture/${type}/${id}`)
 }
 
 // 获取热门资源
 export const getHotResources = (limit = 10) => {
-  return request.get<CultureResource[]>('/culture/hot', { params: { limit } })
+  return request.get<CultureResource[], CultureResource[]>('/culture/hot', {
+    params: { limit },
+  })
 }
 
 // 获取推荐资源
 export const getRecommendedResources = (limit = 10) => {
-  return request.get<CultureResource[]>('/culture/recommended', {
+  return request.get<CultureResource[], CultureResource[]>('/culture/recommended', {
     params: { limit },
   })
 }

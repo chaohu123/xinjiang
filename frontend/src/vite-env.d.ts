@@ -49,3 +49,9 @@ declare module 'photoswipe' {
 
 
 
+
+
+
+
+
+

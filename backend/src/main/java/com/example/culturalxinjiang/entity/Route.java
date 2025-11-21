@@ -43,6 +43,13 @@ public class Route {
     @Column(nullable = false)
     private Double distance; // 公里
 
+    @Column(name = "estimated_budget")
+    private Double estimatedBudget; // 预估总预算（元）
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user; // 路线创建者，可为空
+
     @Column(nullable = false)
     private String startLocation;
 
@@ -61,10 +68,6 @@ public class Route {
     @Builder.Default
     private Integer favorites = 0;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user; // 路线创建者，可为空（示例路线没有创建者）
-
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ItineraryItem> itinerary = new ArrayList<>();
@@ -75,7 +78,7 @@ public class Route {
 
     @ElementCollection
     @CollectionTable(name = "route_tips", joinColumns = @JoinColumn(name = "route_id"))
-    @Column(name = "tip")
+    @Column(name = "tip", columnDefinition = "TEXT")
     @Builder.Default
     private List<String> tips = new ArrayList<>();
 
@@ -116,11 +119,12 @@ public class Route {
         @Builder.Default
         private List<Location> locations = new ArrayList<>();
 
+        @Column(columnDefinition = "TEXT")
         private String accommodation;
 
         @ElementCollection
         @CollectionTable(name = "itinerary_meals", joinColumns = @JoinColumn(name = "itinerary_item_id"))
-        @Column(name = "meal")
+        @Column(name = "meal", columnDefinition = "TEXT")
         @Builder.Default
         private List<String> meals = new ArrayList<>();
 
@@ -129,9 +133,11 @@ public class Route {
         @NoArgsConstructor
         @AllArgsConstructor
         public static class Location {
+            @Column(length = 255)
             private String name;
             private Double lat;
             private Double lng;
+            @Column(columnDefinition = "TEXT")
             private String description;
         }
     }

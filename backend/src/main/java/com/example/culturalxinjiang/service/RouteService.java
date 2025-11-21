@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -34,6 +35,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class RouteService {
+
+    private static final int TIP_MAX_LENGTH = 480;
 
     private final RouteRepository routeRepository;
     private final CultureResourceRepository cultureResourceRepository;
@@ -157,6 +160,8 @@ public class RouteService {
         // 计算总里程（根据路线中的所有位置点）
         Double totalDistance = calculateRouteDistance(aiResponse);
 
+        Double normalizedBudget = estimateBudget(budget, request.getDuration(), totalDistance);
+
         // 创建Route实体
         Route route = Route.builder()
                 .title(aiResponse.getTitle())
@@ -164,6 +169,7 @@ public class RouteService {
                 .theme(theme)
                 .duration(request.getDuration())
                 .distance(totalDistance)
+                .estimatedBudget(normalizedBudget)
                 .startLocation(startLocation)
                 .endLocation(endLocation)
                 .waypoints(0)
@@ -239,11 +245,7 @@ public class RouteService {
         route.setWaypoints(waypointCount);
 
         // 设置提示
-        if (aiResponse.getTips() != null && !aiResponse.getTips().isEmpty()) {
-            route.setTips(aiResponse.getTips());
-        } else {
-            route.setTips(new ArrayList<>());
-        }
+        route.setTips(normalizeTips(aiResponse.getTips()));
 
         // 保存路线到数据库
         route = routeRepository.save(route);
@@ -311,6 +313,24 @@ public class RouteService {
     }
 
     /**
+     * 根据输入信息预估总预算
+     */
+    private Double estimateBudget(Double providedBudget, Integer duration, Double distance) {
+        if (providedBudget != null && providedBudget > 0) {
+            return (double) Math.round(providedBudget);
+        }
+        if (duration == null && distance == null) {
+            return null;
+        }
+
+        double durationFactor = duration != null ? duration : 5;
+        double distanceFactor = distance != null ? distance : 300.0;
+        double estimated = durationFactor * 800 + distanceFactor * 2;
+        // 向上取整到百元，避免出现过多小额数值
+        return (double) Math.round(Math.max(estimated, 1500) / 100.0) * 100.0;
+    }
+
+    /**
      * 使用 Haversine 公式计算两点之间的距离（单位：公里）
      */
     private double calculateHaversineDistance(double lat1, double lng1, double lat2, double lng2) {
@@ -343,7 +363,53 @@ public class RouteService {
                 .views(route.getViews())
                 .favorites(route.getFavorites())
                 .createdAt(route.getCreatedAt())
+                .estimatedBudget(route.getEstimatedBudget())
                 .build();
+    }
+
+    private List<String> normalizeTips(List<String> rawTips) {
+        List<String> normalized = new ArrayList<>();
+        if (rawTips == null || rawTips.isEmpty()) {
+            return normalized;
+        }
+
+        LinkedHashSet<String> deduplicated = new LinkedHashSet<>();
+        for (String tip : rawTips) {
+            if (!StringUtils.hasText(tip)) {
+                continue;
+            }
+            String trimmed = tip.trim();
+            if (trimmed.length() <= TIP_MAX_LENGTH) {
+                deduplicated.add(trimmed);
+            } else {
+                for (String part : splitTip(trimmed)) {
+                    if (StringUtils.hasText(part)) {
+                        deduplicated.add(part);
+                    }
+                }
+            }
+        }
+
+        normalized.addAll(deduplicated);
+        return normalized;
+    }
+
+    private List<String> splitTip(String tip) {
+        List<String> parts = new ArrayList<>();
+        if (!StringUtils.hasText(tip)) {
+            return parts;
+        }
+
+        int start = 0;
+        while (start < tip.length()) {
+            int end = Math.min(tip.length(), start + TIP_MAX_LENGTH);
+            String chunk = tip.substring(start, end).trim();
+            if (StringUtils.hasText(chunk)) {
+                parts.add(chunk);
+            }
+            start = end;
+        }
+        return parts;
     }
 
     private RouteDetailResponse mapToDetailResponse(Route route) {
@@ -360,6 +426,7 @@ public class RouteService {
         response.setWaypoints(route.getWaypoints());
         response.setViews(route.getViews());
         response.setFavorites(route.getFavorites());
+        response.setEstimatedBudget(route.getEstimatedBudget());
         response.setCreatedAt(route.getCreatedAt());
         response.setFavorited(isRouteFavoritedByCurrentUser(route.getId()));
 

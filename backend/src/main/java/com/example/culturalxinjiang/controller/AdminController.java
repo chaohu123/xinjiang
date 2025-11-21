@@ -4,6 +4,7 @@ import com.example.culturalxinjiang.dto.request.CreatePostRequest;
 import com.example.culturalxinjiang.dto.response.ApiResponse;
 import com.example.culturalxinjiang.dto.response.CultureResourceResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
+import com.example.culturalxinjiang.dto.response.RouteAnalyticsResponse;
 import com.example.culturalxinjiang.dto.response.UserInfoResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
@@ -234,6 +235,12 @@ public class AdminController {
             @RequestParam(defaultValue = "10") Integer limit
     ) {
         java.util.List<com.example.culturalxinjiang.dto.response.EventResponse> response = adminService.getOngoingEvents(limit);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/dashboard/route-insights")
+    public ApiResponse<RouteAnalyticsResponse> getRouteAnalytics() {
+        RouteAnalyticsResponse response = adminService.getRouteAnalytics();
         return ApiResponse.success(response);
     }
 

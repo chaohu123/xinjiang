@@ -2,16 +2,19 @@ package com.example.culturalxinjiang.service;
 
 import com.example.culturalxinjiang.dto.response.CultureResourceResponse;
 import com.example.culturalxinjiang.dto.response.PageResponse;
+import com.example.culturalxinjiang.dto.response.RouteAnalyticsResponse;
 import com.example.culturalxinjiang.dto.response.UserInfoResponse;
 import com.example.culturalxinjiang.dto.response.CommunityPostResponse;
 import com.example.culturalxinjiang.dto.response.EventResponse;
 import com.example.culturalxinjiang.entity.CultureResource;
 import com.example.culturalxinjiang.entity.CommunityPost;
 import com.example.culturalxinjiang.entity.Event;
+import com.example.culturalxinjiang.entity.Route;
 import com.example.culturalxinjiang.entity.User;
 import com.example.culturalxinjiang.repository.CultureResourceRepository;
 import com.example.culturalxinjiang.repository.CommunityPostRepository;
 import com.example.culturalxinjiang.repository.EventRepository;
+import com.example.culturalxinjiang.repository.RouteRepository;
 import com.example.culturalxinjiang.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,8 +23,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +40,32 @@ public class AdminService {
     private final CultureResourceRepository cultureResourceRepository;
     private final CommunityPostRepository communityPostRepository;
     private final EventRepository eventRepository;
+    private final RouteRepository routeRepository;
+
+    private static final Map<String, String> THEME_LABELS = Map.of(
+            "silkRoad", "丝绸之路",
+            "nature", "自然风光",
+            "culture", "文化体验",
+            "food", "美食探索"
+    );
+
+    private static final Map<String, double[]> CITY_COORDINATES = Map.ofEntries(
+            Map.entry("乌鲁木齐", new double[]{43.793026, 87.627704}),
+            Map.entry("喀什", new double[]{39.4704, 75.9898}),
+            Map.entry("吐鲁番", new double[]{42.9476, 89.1788}),
+            Map.entry("库尔勒", new double[]{41.7269, 86.1746}),
+            Map.entry("阿克苏", new double[]{41.1675, 80.2684}),
+            Map.entry("阿勒泰", new double[]{47.8484, 88.1389}),
+            Map.entry("伊犁", new double[]{43.9169, 81.3242}),
+            Map.entry("那拉提", new double[]{43.8224, 82.7043}),
+            Map.entry("巴音布鲁克", new double[]{42.9035, 84.1465}),
+            Map.entry("库车", new double[]{41.7167, 82.9833}),
+            Map.entry("喀纳斯", new double[]{48.9983, 86.9958}),
+            Map.entry("和田", new double[]{37.1142, 79.9225}),
+            Map.entry("哈密", new double[]{42.8586, 93.5319}),
+            Map.entry("塔什库尔干", new double[]{37.7726, 75.2284}),
+            Map.entry("天山天池", new double[]{43.9073, 88.1234})
+    );
 
     // ==================== 用户管理 ====================
 
@@ -391,6 +425,29 @@ public class AdminService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public RouteAnalyticsResponse getRouteAnalytics() {
+        List<Route> routes = routeRepository.findAll();
+        long total = routes.size();
+
+        RouteAnalyticsResponse.Summary summary = RouteAnalyticsResponse.Summary.builder()
+                .totalRoutes(total)
+                .avgDuration(calculateAverageDuration(routes))
+                .avgDistance(calculateAverageDistance(routes))
+                .geoCoverageRate(total == 0 ? 0 : (double) countRoutesWithGeo(routes) / total)
+                .budgetCoverageRate(total == 0 ? 0 : (double) countRoutesWithBudget(routes) / total)
+                .generatedAt(LocalDateTime.now())
+                .build();
+
+        return RouteAnalyticsResponse.builder()
+                .summary(summary)
+                .themeStats(buildThemeStats(routes, total))
+                .durationPreferences(buildDurationPreferences(routes, total))
+                .budgetPreferences(buildBudgetPreferences(routes, total))
+                .heatmapPoints(buildHeatmapPoints(routes))
+                .build();
+    }
+
     private EventResponse mapToEventResponse(Event event) {
         List<String> images = event.getImages() != null ? new ArrayList<>(event.getImages()) : new ArrayList<>();
         List<String> videos = event.getVideos() != null ? new ArrayList<>(event.getVideos()) : new ArrayList<>();
@@ -453,6 +510,218 @@ public class AdminService {
             return Event.EventStatus.UPCOMING;
         }
         return Event.EventStatus.ONGOING;
+    }
+
+    private double calculateAverageDuration(List<Route> routes) {
+        return routes.stream()
+                .map(Route::getDuration)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0);
+    }
+
+    private double calculateAverageDistance(List<Route> routes) {
+        return routes.stream()
+                .map(Route::getDistance)
+                .filter(Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
+    }
+
+    private long countRoutesWithGeo(List<Route> routes) {
+        return routes.stream()
+                .filter(route -> resolveCoordinates(route) != null)
+                .count();
+    }
+
+    private long countRoutesWithBudget(List<Route> routes) {
+        return routes.stream()
+                .filter(route -> route.getEstimatedBudget() != null)
+                .count();
+    }
+
+    private List<RouteAnalyticsResponse.ThemeStat> buildThemeStats(List<Route> routes, long total) {
+        Map<String, Long> themeCount = routes.stream()
+                .collect(Collectors.groupingBy(route -> {
+                    String theme = route.getTheme();
+                    return (theme != null && !theme.isBlank()) ? theme : "other";
+                }, Collectors.counting()));
+
+        return themeCount.entrySet().stream()
+                .map(entry -> RouteAnalyticsResponse.ThemeStat.builder()
+                        .theme(entry.getKey())
+                        .label(getThemeLabel(entry.getKey()))
+                        .count(entry.getValue())
+                        .percent(total == 0 ? 0 : (double) entry.getValue() / total)
+                        .build())
+                .sorted(Comparator.comparingLong(RouteAnalyticsResponse.ThemeStat::getCount).reversed())
+                .collect(Collectors.toList());
+    }
+
+    private List<RouteAnalyticsResponse.PreferenceStat> buildDurationPreferences(List<Route> routes, long total) {
+        long shortTrips = 0;
+        long mediumTrips = 0;
+        long deepTrips = 0;
+        long longTrips = 0;
+        long unknown = 0;
+
+        for (Route route : routes) {
+            Integer duration = route.getDuration();
+            if (duration == null || duration <= 0) {
+                unknown++;
+            } else if (duration <= 3) {
+                shortTrips++;
+            } else if (duration <= 6) {
+                mediumTrips++;
+            } else if (duration <= 9) {
+                deepTrips++;
+            } else {
+                longTrips++;
+            }
+        }
+
+        List<RouteAnalyticsResponse.PreferenceStat> stats = new ArrayList<>();
+        stats.add(buildPreferenceStat("1-3天轻松游", shortTrips, total));
+        stats.add(buildPreferenceStat("4-6天经典线", mediumTrips, total));
+        stats.add(buildPreferenceStat("7-9天深度游", deepTrips, total));
+        stats.add(buildPreferenceStat("10天以上探索线", longTrips, total));
+        if (unknown > 0) {
+            stats.add(buildPreferenceStat("未设置", unknown, total));
+        }
+        return stats;
+    }
+
+    private List<RouteAnalyticsResponse.PreferenceStat> buildBudgetPreferences(List<Route> routes, long total) {
+        long economy = 0;
+        long comfort = 0;
+        long premium = 0;
+        long luxury = 0;
+        long unknown = 0;
+
+        for (Route route : routes) {
+            Double budget = resolveBudgetForStats(route);
+            if (budget == null) {
+                unknown++;
+                continue;
+            }
+            if (budget <= 3000) {
+                economy++;
+            } else if (budget <= 6000) {
+                comfort++;
+            } else if (budget <= 10000) {
+                premium++;
+            } else {
+                luxury++;
+            }
+        }
+
+        List<RouteAnalyticsResponse.PreferenceStat> stats = new ArrayList<>();
+        stats.add(buildPreferenceStat("≤3000元", economy, total));
+        stats.add(buildPreferenceStat("3000-6000元", comfort, total));
+        stats.add(buildPreferenceStat("6000-10000元", premium, total));
+        stats.add(buildPreferenceStat("≥10000元", luxury, total));
+        if (unknown > 0) {
+            stats.add(buildPreferenceStat("未设置", unknown, total));
+        }
+        return stats;
+    }
+
+    private List<RouteAnalyticsResponse.HeatmapPoint> buildHeatmapPoints(List<Route> routes) {
+        return routes.stream()
+                .sorted(Comparator.comparingDouble(this::calculateIntensity).reversed())
+                .limit(10)
+                .map(route -> {
+                    double[] coordinate = resolveCoordinates(route);
+                    return RouteAnalyticsResponse.HeatmapPoint.builder()
+                            .routeId(route.getId())
+                            .routeTitle(route.getTitle())
+                            .theme(route.getTheme())
+                            .duration(route.getDuration())
+                            .startLocation(route.getStartLocation())
+                            .endLocation(route.getEndLocation())
+                            .views(route.getViews())
+                            .favorites(route.getFavorites())
+                            .intensity(calculateIntensity(route))
+                            .lat(coordinate != null ? coordinate[0] : null)
+                            .lng(coordinate != null ? coordinate[1] : null)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    private double[] resolveCoordinates(Route route) {
+        if (route.getItinerary() != null) {
+            List<Route.ItineraryItem.Location> locations = route.getItinerary().stream()
+                    .filter(item -> item.getLocations() != null)
+                    .flatMap(item -> item.getLocations().stream())
+                    .filter(loc -> loc.getLat() != null && loc.getLng() != null)
+                    .collect(Collectors.toList());
+            if (!locations.isEmpty()) {
+                double avgLat = locations.stream().mapToDouble(Route.ItineraryItem.Location::getLat).average().orElse(0.0);
+                double avgLng = locations.stream().mapToDouble(Route.ItineraryItem.Location::getLng).average().orElse(0.0);
+                return new double[]{avgLat, avgLng};
+            }
+        }
+
+        double[] start = findCityCoordinate(route.getStartLocation());
+        if (start != null) {
+            return start;
+        }
+        return findCityCoordinate(route.getEndLocation());
+    }
+
+    private double[] findCityCoordinate(String location) {
+        if (location == null || location.isBlank()) {
+            return null;
+        }
+        return CITY_COORDINATES.entrySet().stream()
+                .filter(entry -> location.contains(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private double calculateIntensity(Route route) {
+        double views = route.getViews() != null ? route.getViews() : 0;
+        double favorites = route.getFavorites() != null ? route.getFavorites() : 0;
+        return views * 0.6 + favorites * 1.0;
+    }
+
+    private RouteAnalyticsResponse.PreferenceStat buildPreferenceStat(String label, long count, long total) {
+        return RouteAnalyticsResponse.PreferenceStat.builder()
+                .label(label)
+                .count(count)
+                .percent(total == 0 ? 0 : (double) count / Math.max(total, 1))
+                .build();
+    }
+
+    private String getThemeLabel(String theme) {
+        if (theme == null || theme.isBlank()) {
+            return "其他主题";
+        }
+        return THEME_LABELS.getOrDefault(theme, theme);
+    }
+
+    private Double resolveBudgetForStats(Route route) {
+        if (route.getEstimatedBudget() != null && route.getEstimatedBudget() > 0) {
+            return route.getEstimatedBudget();
+        }
+        return fallbackBudget(route);
+    }
+
+    private Double fallbackBudget(Route route) {
+        Integer duration = route.getDuration();
+        Double distance = route.getDistance();
+        if (duration == null && distance == null) {
+            return null;
+        }
+
+        double durationFactor = duration != null ? duration : 5;
+        double distanceFactor = distance != null ? distance : 300.0;
+        double estimated = durationFactor * 800 + distanceFactor * 2;
+        return Math.round(Math.max(estimated, 1500) / 100.0) * 100.0;
     }
 
     // ==================== 内部响应类 ====================

@@ -4,6 +4,7 @@ import type { CultureResource, CultureType, HomeResource } from '@/types/culture
 import type { HeritageItem } from '@/types/heritage'
 import type { Event, EventDetail } from '@/types/event'
 import type { CommunityPost } from '@/types/community'
+import type { RouteAnalytics } from '@/types/route'
 
 // ==================== 用户管理 ====================
 export interface UserListResponse {
@@ -244,6 +245,11 @@ export const getOngoingEvents = (limit?: number) => {
   return request.get<Event[]>('/admin/dashboard/ongoing-events', {
     params: { limit },
   })
+}
+
+// 获取路线洞察
+export const getRouteDashboardInsights = () => {
+  return request.get<RouteAnalytics>('/admin/dashboard/route-insights')
 }
 
 // ==================== 首页推荐配置管理 ====================

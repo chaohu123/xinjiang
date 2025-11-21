@@ -306,6 +306,7 @@ CREATE TABLE IF NOT EXISTS routes (
     theme VARCHAR(100) NOT NULL,
     duration INTEGER NOT NULL,
     distance DOUBLE NOT NULL,
+    estimated_budget DOUBLE,
     start_location VARCHAR(255) NOT NULL,
     end_location VARCHAR(255) NOT NULL,
     waypoints INTEGER NOT NULL DEFAULT 0,

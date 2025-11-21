@@ -20,13 +20,17 @@
         :collapse="sidebarCollapsed"
         router
       >
-        <el-menu-item index="/admin/users">
-          <el-icon><User /></el-icon>
-          <template #title> 用户管理 </template>
+        <el-menu-item index="/admin">
+          <el-icon><HomeFilled /></el-icon>
+          <template #title> 首页 </template>
         </el-menu-item>
         <el-menu-item index="/admin/carousels">
           <el-icon><Picture /></el-icon>
           <template #title> 轮播图管理 </template>
+        </el-menu-item>
+        <el-menu-item index="/admin/recommendations">
+          <el-icon><Star /></el-icon>
+          <template #title> 首页推荐配置 </template>
         </el-menu-item>
         <el-menu-item index="/admin/culture">
           <el-icon><Document /></el-icon>
@@ -43,10 +47,6 @@
         <el-menu-item index="/admin/posts">
           <el-icon><ChatLineRound /></el-icon>
           <template #title> 社区投稿审核 </template>
-        </el-menu-item>
-        <el-menu-item index="/admin/recommendations">
-          <el-icon><Star /></el-icon>
-          <template #title> 首页推荐配置 </template>
         </el-menu-item>
       </el-menu>
     </aside>
@@ -104,7 +104,6 @@ import {
   Setting,
   Fold,
   Expand,
-  User,
   Picture,
   Document,
   Calendar,

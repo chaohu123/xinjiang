@@ -2,7 +2,12 @@
   <div class="home">
     <!-- Carousel Section -->
     <div class="home-carousel">
-      <Carousel v-loading="carouselLoading" :items="carouselItems" :height="'50vh'" />
+      <Carousel
+        v-loading="carouselLoading"
+        :loading="carouselLoading"
+        :items="carouselItems"
+        :height="'50vh'"
+      />
     </div>
 
     <!-- Quick Navigation Section -->
@@ -32,71 +37,28 @@
       </div>
     </section>
 
-    <!-- Featured Section -->
-    <section class="section">
+    <!-- Resource Sections -->
+    <section
+      v-for="section in resourceSections"
+      :key="section.key"
+      class="section"
+      :class="{ 'section-alt': section.isAlt }"
+    >
       <div class="container">
         <div class="section-header">
           <h2 class="section-title">
-            {{ $t('home.featured') }}
+            {{ $t(section.titleKey) }}
           </h2>
-          <el-button link @click="$router.push('/search')">
+          <el-button
+            v-if="section.ctaRoute"
+            link
+            @click="$router.push(section.ctaRoute)"
+          >
             {{ $t('common.more') }} <el-icon><ArrowRight /></el-icon>
           </el-button>
         </div>
-        <div v-loading="featuredLoading" class="resources-grid">
-          <CultureCard v-for="item in featuredResources" :key="item.id" :resource="item" />
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-alt" v-if="heritageItems.length">
-      <div class="container">
-        <div class="section-header">
-          <h2 class="section-title">非遗精选</h2>
-          <el-button link @click="$router.push('/heritage')">
-            走进更多非遗 <el-icon><ArrowRight /></el-icon>
-          </el-button>
-        </div>
-        <div v-loading="heritageLoading" class="heritage-mini-grid">
-          <el-card v-for="item in heritageItems" :key="item.id" class="heritage-mini-card" @click="$router.push(`/heritage/${item.id}`)">
-            <el-image :src="item.cover || item.images?.[0]" fit="cover" class="mini-image" />
-            <div class="mini-body">
-              <div class="mini-meta">
-                <el-tag size="small" effect="dark">{{ item.heritageLevel }}</el-tag>
-                <span>{{ item.region }}</span>
-              </div>
-              <h3>{{ item.title }}</h3>
-              <p>{{ item.description }}</p>
-            </div>
-          </el-card>
-        </div>
-      </div>
-    </section>
-
-    <!-- Hot Resources Section -->
-    <section class="section section-alt">
-      <div class="container">
-        <div class="section-header">
-          <h2 class="section-title">
-            {{ $t('home.hot') }}
-          </h2>
-        </div>
-        <div v-loading="hotLoading" class="resources-grid">
-          <CultureCard v-for="item in hotResources" :key="item.id" :resource="item" />
-        </div>
-      </div>
-    </section>
-
-    <section class="section" v-if="personalResources.length">
-      <div class="container">
-        <div class="section-header">
-          <h2 class="section-title">为你推荐</h2>
-          <el-button link @click="$router.push('/search')">
-            {{ $t('common.more') }} <el-icon><ArrowRight /></el-icon>
-          </el-button>
-        </div>
-        <div v-loading="personalLoading" class="resources-grid">
-          <CultureCard v-for="item in personalResources" :key="`personal-${item.id}`" :resource="item" />
+        <div v-loading="section.loading" class="resources-grid">
+          <CultureCard v-for="item in section.resources" :key="item.id" :resource="item" />
         </div>
       </div>
     </section>
@@ -144,116 +106,132 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getRecommendedResources, getHotResources } from '@/api/culture'
 import { getLatestEvents } from '@/api/event'
 import { getCarousels } from '@/api/carousel'
-import { getHeritageRecommendations } from '@/api/heritage'
-import { getRecommendationsFeed } from '@/api/recommendation'
 import type { CultureResource, HomeResource } from '@/types/culture'
 import type { Event } from '@/types/event'
-import type { HeritageItem } from '@/types/heritage'
 import type { CarouselItem } from '@/types/carousel'
 import CultureCard from '@/components/common/CultureCard.vue'
 import Carousel from '@/components/common/Carousel.vue'
 import { formatDate } from '@/utils'
 import { ArrowRight, Calendar, Location } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
-const featuredResources = ref<HomeResource[]>([])
-const hotResources = ref<HomeResource[]>([])
-const personalResources = ref<HomeResource[]>([])
+const { t } = useI18n()
+
+const featuredResources = ref<Array<CultureResource | HomeResource>>([])
+const hotResources = ref<Array<CultureResource | HomeResource>>([])
 const latestEvents = ref<Event[]>([])
-const heritageItems = ref<HeritageItem[]>([])
 const carouselItems = ref<CarouselItem[]>([])
 const featuredLoading = ref(false)
 const hotLoading = ref(false)
-const personalLoading = ref(false)
 const eventsLoading = ref(false)
 const carouselLoading = ref(false)
-const heritageLoading = ref(false)
 
-// 快速导航配置
-// 注意：图标名称使用字符串，因为图标已在 main.ts 中全局注册
-const quickNavItems = [
+interface QuickNavItem {
+  path: string
+  title: string
+  description: string
+  icon: string
+  color: string
+}
+
+// 快速导航配置（响应语言切换）
+const quickNavItems = computed<QuickNavItem[]>(() => [
   {
     path: '/map',
-    title: '地图探索',
-    description: '发现文化地标',
+    title: t('home.quickNav.map.title'),
+    description: t('home.quickNav.map.description'),
     icon: 'MapLocation',
     color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   },
   {
     path: '/routes',
-    title: '路线推荐',
-    description: '精选旅游路线',
+    title: t('home.quickNav.routes.title'),
+    description: t('home.quickNav.routes.description'),
     icon: 'Guide',
     color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
   },
   {
     path: '/events',
-    title: '活动日历',
-    description: '精彩文化活动',
+    title: t('home.quickNav.events.title'),
+    description: t('home.quickNav.events.description'),
     icon: 'Calendar',
     color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
   },
   {
     path: '/community',
-    title: '社区互动',
-    description: '分享你的故事',
+    title: t('home.quickNav.community.title'),
+    description: t('home.quickNav.community.description'),
     icon: 'ChatLineRound',
     color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
   },
-]
+])
+
+const resourceSections = computed(() => [
+  {
+    key: 'featured',
+    titleKey: 'home.featured',
+    ctaRoute: '/search',
+    resources: featuredResources.value,
+    loading: featuredLoading.value,
+    isAlt: false,
+  },
+  {
+    key: 'hot',
+    titleKey: 'home.hot',
+    resources: hotResources.value,
+    loading: hotLoading.value,
+    isAlt: true,
+  },
+])
+
+const withFallback = async <T>(promise: Promise<T>, fallback: T) => {
+  try {
+    return await promise
+  } catch (error) {
+    console.error('Load home data fallback triggered:', error)
+    return fallback
+  }
+}
 
 const loadData = async () => {
   try {
     featuredLoading.value = true
     hotLoading.value = true
-    personalLoading.value = true
-    heritageLoading.value = true
     eventsLoading.value = true
     carouselLoading.value = true
 
-    const [featured, hot, events, carousels, heritage, personal] = await Promise.all([
-      getRecommendedResources(8).catch(() => []),
-      getHotResources(8).catch(() => []),
-      getLatestEvents({ page: 1, size: 4 }).catch(() => ({ list: [] as Event[], total: 0 })),
-      getCarousels().catch(() => [] as CarouselItem[]),
-      getHeritageRecommendations(4).catch(() => []),
-      getRecommendationsFeed(6).catch(() => []),
+    const [featured, hot, events, carousels] = await Promise.all([
+      withFallback(getRecommendedResources(8), [] as Array<CultureResource | HomeResource>),
+      withFallback(getHotResources(8), [] as Array<CultureResource | HomeResource>),
+      withFallback(getLatestEvents({ page: 1, size: 4 }), { list: [] as Event[], total: 0 }),
+      withFallback(getCarousels(), [] as CarouselItem[]),
     ])
 
     featuredResources.value = Array.isArray(featured) ? featured : []
     hotResources.value = Array.isArray(hot) ? hot : []
-    const eventsData = events as { list?: Event[]; total?: number } | null
-    if (eventsData && eventsData.list) {
-      latestEvents.value = Array.isArray(eventsData.list) ? eventsData.list : []
-    } else {
-      latestEvents.value = []
-    }
-    heritageItems.value = Array.isArray(heritage) ? heritage : []
-    personalResources.value = Array.isArray(personal) ? personal : []
+    const eventsData = events ?? { list: [] as Event[] }
+    latestEvents.value = Array.isArray(eventsData.list) ? eventsData.list : []
     // 只显示启用的轮播图，并按 order 排序
-    const carouselsData = Array.isArray(carousels) ? (carousels as CarouselItem[]) : []
+    const carouselsData = Array.isArray(carousels) ? carousels : []
     carouselItems.value = carouselsData
       .filter(item => item.enabled)
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   } catch (error) {
     console.error('Failed to load home data:', error)
     // 确保即使出错也设置默认值
     featuredResources.value = []
     hotResources.value = []
-    heritageItems.value = []
-    personalResources.value = []
     latestEvents.value = []
     carouselItems.value = []
   } finally {
     featuredLoading.value = false
     hotLoading.value = false
-    personalLoading.value = false
     eventsLoading.value = false
     carouselLoading.value = false
-    heritageLoading.value = false
   }
 }
 
@@ -292,11 +270,9 @@ onMounted(() => {
     padding-bottom: 0 !important;
 
     .el-carousel__container {
-      // 合理的轮播图高度 - 既能显示图片又不会占据整个页面
+      // 使用 clamp 控制在不同视口的高度区间
       width: 100% !important;
-      height: 50vh !important; // 使用合理的视口高度比例
-      min-height: 500px; // 合理的最小高度
-      max-height: 700px; // 设置最大高度，避免过大
+      height: clamp(360px, 50vh, 680px) !important;
       margin-bottom: 0 !important;
       padding-bottom: 0 !important;
     }
@@ -392,7 +368,7 @@ onMounted(() => {
   // 轮播图项样式
   :deep(.carousel-item) {
     width: 100%;
-    min-height: 500px; // 与容器高度匹配
+    min-height: clamp(360px, 50vh, 680px); // 与容器高度匹配
     height: 100%;
     // 使用 cover 填充整个容器，无留白
     // 通过合理的容器高度平衡显示效果和页面布局
@@ -465,10 +441,9 @@ onMounted(() => {
   }
 
   // 空状态样式
-  :deep(.carousel-empty) {
-    height: 50vh;
-    min-height: 500px;
-    max-height: 700px;
+  :deep(.carousel-empty),
+  :deep(.carousel-loading) {
+    height: clamp(360px, 50vh, 680px);
     width: 100%;
     background: linear-gradient(
       to bottom,
@@ -905,13 +880,14 @@ onMounted(() => {
     flex-wrap: wrap;
     justify-content: center;
     gap: 16px;
+    max-width: 100%;
   }
 
   .quick-nav-card {
     padding: 16px;
     gap: 12px;
-    flex: 1 1 calc(50% - 16px);
-    min-width: 200px;
+    flex: 1 1 100%;
+    min-width: 0;
   }
 
   .quick-nav-icon {

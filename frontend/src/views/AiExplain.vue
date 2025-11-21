@@ -59,7 +59,7 @@
               </el-form-item>
               <el-form-item label="聚焦要点">
                 <el-checkbox-group v-model="form.focusPoints">
-                  <el-checkbox v-for="focus in focusOptions" :key="focus.value" :label="focus.value">
+                  <el-checkbox v-for="focus in focusOptions" :key="focus.value" :value="focus.value">
                     {{ focus.label }}
                   </el-checkbox>
                 </el-checkbox-group>

@@ -35,6 +35,24 @@ export default {
     hot: '热门资源',
     latest: '最新动态',
     explore: '开始探索',
+    quickNav: {
+      map: {
+        title: '地图探索',
+        description: '发现文化地标',
+      },
+      routes: {
+        title: '路线推荐',
+        description: '精选旅游路线',
+      },
+      events: {
+        title: '活动日历',
+        description: '精彩文化活动',
+      },
+      community: {
+        title: '社区互动',
+        description: '分享你的故事',
+      },
+    },
   },
   search: {
     title: '搜索文化资源',

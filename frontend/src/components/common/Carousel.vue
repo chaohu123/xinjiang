@@ -38,6 +38,9 @@
         </div>
       </el-carousel-item>
     </el-carousel>
+    <div v-else-if="loading" class="carousel-loading">
+      <el-skeleton :rows="4" animated style="width: 100%; height: 100%" />
+    </div>
     <div v-else class="carousel-empty">
       <div class="empty-content">
         <h1 class="hero-title">
@@ -78,11 +81,13 @@ interface Props {
   items: CarouselItem[]
   interval?: number
   height?: string
+  loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   interval: 5000,
   height: '500px',
+  loading: false,
 })
 
 const router = useRouter()
@@ -244,6 +249,15 @@ const handleClick = (link?: string) => {
     position: relative;
     z-index: 1;
   }
+}
+
+.carousel-loading {
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border-radius: 16px;
 }
 
 .empty-content {
