@@ -57,8 +57,27 @@
             {{ $t('common.more') }} <el-icon><ArrowRight /></el-icon>
           </el-button>
         </div>
+<<<<<<< HEAD
         <div v-loading="section.loading" class="resources-grid">
           <CultureCard v-for="item in section.resources" :key="item.id" :resource="item" />
+=======
+        <div v-loading="featuredLoading" class="resources-grid">
+          <CultureCard v-for="item in featuredResources" :key="item.id" :resource="item" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Hot Resources Section -->
+    <section class="section section-alt">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">
+            {{ $t('home.hot') }}
+          </h2>
+        </div>
+        <div v-loading="hotLoading" class="resources-grid">
+          <CultureCard v-for="item in hotResources" :key="item.id" :resource="item" />
+>>>>>>> d741338a73d40ed487e214d275739d8dd21ddf84
         </div>
       </div>
     </section>
@@ -119,10 +138,15 @@ import { formatDate } from '@/utils'
 import { ArrowRight, Calendar, Location } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
+<<<<<<< HEAD
 const { t } = useI18n()
 
 const featuredResources = ref<Array<CultureResource | HomeResource>>([])
 const hotResources = ref<Array<CultureResource | HomeResource>>([])
+=======
+const featuredResources = ref<HomeResource[]>([])
+const hotResources = ref<HomeResource[]>([])
+>>>>>>> d741338a73d40ed487e214d275739d8dd21ddf84
 const latestEvents = ref<Event[]>([])
 const carouselItems = ref<CarouselItem[]>([])
 const featuredLoading = ref(false)
@@ -205,16 +229,32 @@ const loadData = async () => {
     carouselLoading.value = true
 
     const [featured, hot, events, carousels] = await Promise.all([
+<<<<<<< HEAD
       withFallback(getRecommendedResources(8), [] as Array<CultureResource | HomeResource>),
       withFallback(getHotResources(8), [] as Array<CultureResource | HomeResource>),
       withFallback(getLatestEvents({ page: 1, size: 4 }), { list: [] as Event[], total: 0 }),
       withFallback(getCarousels(), [] as CarouselItem[]),
+=======
+      getRecommendedResources(8).catch(() => []),
+      getHotResources(8).catch(() => []),
+      getLatestEvents({ page: 1, size: 4 }).catch(() => ({ list: [] as Event[], total: 0 })),
+      getCarousels().catch(() => [] as CarouselItem[]),
+>>>>>>> d741338a73d40ed487e214d275739d8dd21ddf84
     ])
 
     featuredResources.value = Array.isArray(featured) ? featured : []
     hotResources.value = Array.isArray(hot) ? hot : []
+<<<<<<< HEAD
     const eventsData = events ?? { list: [] as Event[] }
     latestEvents.value = Array.isArray(eventsData.list) ? eventsData.list : []
+=======
+    const eventsData = events as { list?: Event[]; total?: number } | null
+    if (eventsData && eventsData.list) {
+      latestEvents.value = Array.isArray(eventsData.list) ? eventsData.list : []
+    } else {
+      latestEvents.value = []
+    }
+>>>>>>> d741338a73d40ed487e214d275739d8dd21ddf84
     // 只显示启用的轮播图，并按 order 排序
     const carouselsData = Array.isArray(carousels) ? carousels : []
     carouselItems.value = carouselsData
@@ -225,6 +265,10 @@ const loadData = async () => {
     // 确保即使出错也设置默认值
     featuredResources.value = []
     hotResources.value = []
+<<<<<<< HEAD
+=======
+    heritageItems.value = []
+>>>>>>> d741338a73d40ed487e214d275739d8dd21ddf84
     latestEvents.value = []
     carouselItems.value = []
   } finally {
