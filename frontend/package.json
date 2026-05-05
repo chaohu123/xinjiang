@@ -5,7 +5,8 @@
   "description": "新疆数字文化平台前端",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "format": "npm run lint && prettier --write \"src/**/*.{js,ts,vue,json,css,scss,md}\""
