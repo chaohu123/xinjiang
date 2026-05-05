@@ -5,168 +5,63 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7898ef00-70d6-404c-9b18-fd619f277600" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/backend/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/docker-compose.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/pom.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/CulturalXinjiangApplication.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/OpenApiConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/PasswordMigrationRunner.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/RedisConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/WebConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/AdminController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/AdminEventController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/AuthController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/CarouselController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/CommunityController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/CultureController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/EventController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/RouteController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/UserController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/AdminEventRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/CarouselRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/ChangePasswordRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/CommentRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/CreatePostRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/GenerateRouteRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/LoginRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/RegisterRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/ApiResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/CarouselResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/CommunityPostDetailResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/CommunityPostResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/CultureResourceResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/EventDetailResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/EventRegistrationResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/EventResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/LoginResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/PageResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/RouteDetailResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/RouteResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/UserInfoResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Carousel.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Comment.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/CommunityPost.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/CultureResource.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Event.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/EventRegistration.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Favorite.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/PostLike.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Route.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/User.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/exception/GlobalExceptionHandler.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/CarouselRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/CommentRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/CommunityPostRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/CultureResourceRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/EventRegistrationRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/EventRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/FavoriteRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/PostLikeRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/RouteRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/UserRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/security/CustomUserDetailsService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/security/JwtAuthenticationFilter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/security/JwtTokenProvider.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/security/PlainTextPasswordEncoder.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/security/SecurityConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/AdminEventService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/AdminService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/AuthService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/CarouselService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/CommunityService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/CultureResourceService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/EventService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/FavoriteService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/RouteService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/UserService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/util/GeneratePasswordHash.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/util/PasswordMigrationUtil.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/util/PasswordVerifier.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/application-dev.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/application-prod.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/application.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/DATABASE_SCHEMA.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/drop-schema.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/init-data.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/schema.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/setup.bat" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/setup.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/密码系统变更总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/main/resources/db/明文密码配置说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/uploads/68407403-b04f-44a9-8e4f-1106a5c6df3f.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/uploads/798041bb-7425-403e-ac5d-9dcf98775ab3.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/uploads/7efaf92c-d285-40e0-806e-08aa6caae790.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/uploads/979eec6d-5916-46ac-ab63-fb5bd27cc632.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/.dockerignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/.eslintignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/.eslintrc.cjs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/.prettierrc" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/.prettierrc.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/PROJECT_SUMMARY.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/QUICK_START.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/package-lock.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/postcss.config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/public/vite.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/App.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/api/community.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/api/culture.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/api/event.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/api/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/api/user.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/common/BackToTop.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/common/CultureCard.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/common/EmptyState.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/common/ImageGallery.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/common/LoadingSpinner.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/common/VideoPlayer.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/layout/Footer.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/components/layout/Header.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/i18n/index.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/i18n/locales/en.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/i18n/locales/zh.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/layouts/MainLayout.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/main.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/router/index.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/store/app.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/store/index.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/store/user.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/styles/main.scss" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/types/community.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/types/culture.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/types/event.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/types/route.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/types/user.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/utils/axios.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/utils/constants.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/utils/index.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/utils/permission.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Community.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/CommunityPost.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Detail.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/EventDetail.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Events.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Home.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Login.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Map.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/NotFound.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Profile.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Register.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/RouteDetail.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Routes.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/views/Search.vue" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/src/vite-env.d.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/tailwind.config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/tsconfig.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/tsconfig.node.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/frontend/vite.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/CulturalXinjiangApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/CulturalXinjiangApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/CultureTypeConverter.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/CultureTypeConverter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/DatabaseMigrationRunner.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/config/DatabaseMigrationRunner.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/AiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/AiController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/DigitalImageController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/DigitalImageController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/RecommendationController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/controller/RecommendationController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/EventRegistrationReviewRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/EventRegistrationReviewRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/HeritageItemRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/HeritageItemRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/UpdatePostRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/request/UpdatePostRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/AiExplainResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/AiExplainResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/EventCalendarResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/EventCalendarResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/FavoriteItemResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/FavoriteItemResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/HeritageItemResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/HeritageItemResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/HomeResourceResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/HomeResourceResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/MyCommentResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/dto/response/MyCommentResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Comment.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/Comment.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/HeritageItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/HeritageItem.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/entity/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/HeritageItemRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/HeritageItemRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/HomeRecommendationRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/repository/HomeRecommendationRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/RecommendationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/service/RecommendationService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/util/SecurityUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/example/culturalxinjiang/util/SecurityUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/application-prod.yml" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/application-prod.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/db/drop-schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/db/drop-schema.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/db/init-data.sql" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/db/init-data.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/db/schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/db/schema.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/.dockerignore" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/.dockerignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/.prettierrc" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/.prettierrc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/PROJECT_SUMMARY.md" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/PROJECT_SUMMARY.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/QUICK_START.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/postcss.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/postcss.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/public/vite.svg" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/vite.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/ai.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/ai.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/map.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/map.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/recommendation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/recommendation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/common/BackToTop.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/common/BackToTop.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/events/ActivityCalendar.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/events/ActivityCalendar.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/profile/GalleryCarousel.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/profile/GalleryCarousel.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/profile/LevelProgress.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/profile/LevelProgress.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/profile/MiniEventsCalendar.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/profile/MiniEventsCalendar.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/hooks/useMap.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/hooks/useMap.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/hooks/useRoutePlayer.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/hooks/useRoutePlayer.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/i18n/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/i18n/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/store/app.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/store/app.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/store/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/store/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/store/user.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/store/user.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/styles/theme-variables.css" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/styles/theme-variables.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/types/heritage.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/types/heritage.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/utils/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/utils/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/utils/permission.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/utils/permission.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/views/Home.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/Home.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/views/admin/AdminHeritage.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/admin/AdminHeritage.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/vite-env.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/vite-env.d.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/tsconfig.node.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/tsconfig.node.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -179,9 +74,9 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 5
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
   <component name="ProjectId" id="35KhIrTEmYo5R8J16FSHOPMT1zu" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -192,8 +87,8 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "WebServerToolWindowFactoryState": "false",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "D:/APPdalley/xinjiang/frontend/package.json",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "D:/APPdalley/xinjiang",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -225,6 +120,7 @@
       <option name="presentableId" value="Default" />
       <updated>1762864593275</updated>
       <workItem from="1762864594344" duration="939000" />
+      <workItem from="1766370993271" duration="1114000" />
     </task>
     <servers />
   </component>

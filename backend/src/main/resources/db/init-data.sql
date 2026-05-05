@@ -138,7 +138,12 @@ ON DUPLICATE KEY UPDATE event_id = event_id;
 
 -- =====================================================
 -- 4. 调整路线相关表结构以支持长文本
+-- 注意：这些ALTER TABLE语句用于从旧版本数据库升级
+-- 如果使用最新的schema.sql创建表，这些语句可能不需要，但保留以确保兼容性
+-- 如果表结构已经是最新的，这些语句可能会报错，可以安全忽略
 -- =====================================================
+-- 以下语句用于升级旧版本表结构，如果表已按最新schema.sql创建，可注释掉
+/*
 ALTER TABLE route_tips
     DROP PRIMARY KEY;
 ALTER TABLE route_tips
@@ -157,6 +162,7 @@ ALTER TABLE itinerary_meals
     ADD PRIMARY KEY (itinerary_item_id, meal(255));
 ALTER TABLE itinerary_locations
     MODIFY COLUMN description TEXT NULL;
+*/
 
 -- =====================================================
 -- 5. 插入路线数据
@@ -342,8 +348,6 @@ INSERT INTO event_registrations (user_id, event_id, status) VALUES
 (3, 2, 'PENDING'),
 (3, 4, 'REJECTED')
 ON DUPLICATE KEY UPDATE id = id;
-ALTER TABLE event_registrations
-    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING' AFTER event_id;
 
 -- =====================================================
 -- 插入非遗数据内容
@@ -427,6 +431,17 @@ INSERT INTO heritage_item_images (heritage_id, image_url) VALUES
 
 INSERT INTO heritage_item_tags (heritage_id, tag) VALUES
                                                       (LAST_INSERT_ID(), '纺织'), (LAST_INSERT_ID(), '丝绸'), (LAST_INSERT_ID(), '维吾尔族');
+
+-- =====================================================
+-- 11. 插入轮播图数据
+-- =====================================================
+INSERT INTO carousels (image, title, subtitle, link, button_text, display_order, enabled) VALUES
+('https://images.unsplash.com/photo-1518638150340-f706e86654de?w=1920', '探索新疆文化', '发现千年丝路文明', '/culture', '了解更多', 1, TRUE),
+('https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=1920', '天山天池', '人间仙境，自然奇观', '/routes', '查看路线', 2, TRUE),
+('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920', '非遗文化', '传承千年的文化瑰宝', '/heritage', '探索非遗', 3, TRUE),
+('https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1920', '民族风情', '体验多元民族文化', '/events', '参加活动', 4, TRUE)
+ON DUPLICATE KEY UPDATE id = id;
+
 -- =====================================================
 -- 完成
 -- =====================================================

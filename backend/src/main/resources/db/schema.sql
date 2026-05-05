@@ -307,17 +307,23 @@ CREATE TABLE IF NOT EXISTS routes (
     duration INTEGER NOT NULL,
     distance DOUBLE NOT NULL,
     estimated_budget DOUBLE,
+    user_id BIGINT NULL,
     start_location VARCHAR(255) NOT NULL,
     end_location VARCHAR(255) NOT NULL,
     waypoints INTEGER NOT NULL DEFAULT 0,
     views INTEGER NOT NULL DEFAULT 0,
     favorites INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_routes_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='路线表';
 
 -- 创建路线表索引
 CALL create_index_if_not_exists('routes', 'idx_routes_theme', '(theme)');
+CALL create_index_if_not_exists('routes', 'idx_routes_user', '(user_id)');
 CALL create_index_if_not_exists('routes', 'idx_routes_views', '(views DESC)');
 CALL create_index_if_not_exists('routes', 'idx_routes_favorites', '(favorites DESC)');
 CALL create_index_if_not_exists('routes', 'idx_routes_created_at', '(created_at DESC)');
@@ -331,7 +337,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
     day INTEGER NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    accommodation VARCHAR(255),
+    accommodation TEXT,
     CONSTRAINT fk_itinerary_items_route
         FOREIGN KEY (route_id)
         REFERENCES routes(id)
@@ -350,7 +356,7 @@ CREATE TABLE IF NOT EXISTS itinerary_locations (
     name VARCHAR(255) NOT NULL,
     lat DOUBLE NOT NULL,
     lng DOUBLE NOT NULL,
-    description VARCHAR(500),
+    description TEXT,
     PRIMARY KEY (itinerary_item_id, name, lat, lng),
     CONSTRAINT fk_itinerary_locations_item
         FOREIGN KEY (itinerary_item_id)
@@ -399,8 +405,8 @@ CALL create_index_if_not_exists('route_resources', 'idx_route_resources_order', 
 -- =====================================================
 CREATE TABLE IF NOT EXISTS route_tips (
     route_id BIGINT NOT NULL,
-    tip VARCHAR(500) NOT NULL,
-    PRIMARY KEY (route_id, tip),
+    tip TEXT NOT NULL,
+    PRIMARY KEY (route_id, tip(255)),
     CONSTRAINT fk_route_tips_route
         FOREIGN KEY (route_id)
         REFERENCES routes(id)
@@ -419,6 +425,7 @@ CREATE TABLE IF NOT EXISTS community_posts (
     comments INTEGER NOT NULL DEFAULT 0,
     views INTEGER NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    reject_reason TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_community_posts_author
@@ -539,7 +546,27 @@ CALL create_index_if_not_exists('favorites', 'idx_favorites_resource', '(resourc
 CALL create_index_if_not_exists('favorites', 'idx_favorites_created_at', '(user_id, created_at DESC)');
 
 -- =====================================================
--- 22. 首页推荐表 (home_recommendations)
+-- 22. 轮播图表 (carousels)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS carousels (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    image VARCHAR(500) NOT NULL,
+    title VARCHAR(255),
+    subtitle VARCHAR(255),
+    link VARCHAR(500),
+    button_text VARCHAR(100),
+    display_order INTEGER NOT NULL DEFAULT 0,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='轮播图表';
+
+-- 创建轮播图表索引
+CALL create_index_if_not_exists('carousels', 'idx_carousels_order', '(display_order)');
+CALL create_index_if_not_exists('carousels', 'idx_carousels_enabled', '(enabled)');
+
+-- =====================================================
+-- 23. 首页推荐表 (home_recommendations)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS home_recommendations (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
